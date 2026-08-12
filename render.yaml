@@ -5,10 +5,10 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     envVars:
-      - key: OPENAI_API_KEY
+      - key: GROQ_API_KEY
         sync: false
-      - key: OPENAI_MODEL
-        value: gpt-4o
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
       - key: PORT
         value: 3000
       # Only needed if you enable the 5-minute video generator.

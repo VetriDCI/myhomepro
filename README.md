@@ -38,7 +38,7 @@ Install Node.js LTS and FFmpeg.
 cd backend
 npm install
 
-Copy `.env.example` to `.env` and set your API keys.
+Copy `.env.example` to `.env` and set your Groq API key (free — get one at https://console.groq.com/keys).
 
 npm start
 

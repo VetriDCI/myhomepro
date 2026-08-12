@@ -16,8 +16,8 @@ app.use("/generated",express.static(path.join(__dirname,"generated")));
 
 let ai=null;
 function getAI(){
-  if(!process.env.OPENAI_API_KEY)throw new Error("OPENAI_API_KEY is not configured. Copy backend/.env.example to backend/.env and set your key.");
-  if(!ai)ai=new OpenAI({apiKey:process.env.OPENAI_API_KEY});
+  if(!process.env.GROQ_API_KEY)throw new Error("GROQ_API_KEY is not configured. Copy backend/.env.example to backend/.env and set your key.");
+  if(!ai)ai=new OpenAI({apiKey:process.env.GROQ_API_KEY,baseURL:"https://api.groq.com/openai/v1"});
   return ai;
 }
 const jobs=new Map();
@@ -36,12 +36,11 @@ app.post("/api/ai/chat",async(req,res)=>{
     if(!message.trim())return res.status(400).json({ok:false,message:"Message is required."});
     const input=[...history.slice(-10),{role:"user",content:`Mode: ${mode}\nUser: ${message}`}]
       .map(x=>({role:x.role==="assistant"?"assistant":"user",content:String(x.content||"")}));
-    const r=await getAI().responses.create({
-      model:process.env.OPENAI_MODEL||"gpt-4o",
-      instructions:CHAT_SYSTEM,
-      input
+    const r=await getAI().chat.completions.create({
+      model:process.env.GROQ_MODEL||"llama-3.3-70b-versatile",
+      messages:[{role:"system",content:CHAT_SYSTEM},...input]
     });
-    res.json({ok:true,message:r.output_text?.trim()||"I couldn't generate a response."});
+    res.json({ok:true,message:r.choices?.[0]?.message?.content?.trim()||"I couldn't generate a response."});
   }catch(e){console.error(e);res.status(500).json({ok:false,message:e.message||"AI request failed."})}
 });
 
@@ -52,9 +51,15 @@ Every scene must be 5-10 seconds. Sum durations EXACTLY to total_duration.
 Preserve story order and visual consistency. For 300 seconds create about 30-60 scenes.`;
 
 async function makePlan(prompt,total,clip,aspect){
- const r=await getAI().responses.create({model:process.env.OPENAI_MODEL||"gpt-4o",instructions:PLAN_SYSTEM,
-  input:JSON.stringify({story:prompt,total_duration:total,preferred_clip:clip,aspect_ratio:aspect})});
- let t=r.output_text?.trim();if(!t)throw new Error("Empty AI plan.");
+ const r=await getAI().chat.completions.create({
+  model:process.env.GROQ_MODEL||"llama-3.3-70b-versatile",
+  response_format:{type:"json_object"},
+  messages:[
+   {role:"system",content:PLAN_SYSTEM},
+   {role:"user",content:JSON.stringify({story:prompt,total_duration:total,preferred_clip:clip,aspect_ratio:aspect})}
+  ]
+ });
+ let t=r.choices?.[0]?.message?.content?.trim();if(!t)throw new Error("Empty AI plan.");
  let p;try{p=JSON.parse(t)}catch{throw new Error("Invalid AI scene-plan JSON.")} 
  if(!Array.isArray(p.scenes)||!p.scenes.length)throw new Error("No scenes returned.");
  return p;
