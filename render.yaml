@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: super-ai-studio
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: PORT
+        value: 3000
+      # Only needed if you enable the 5-minute video generator.
+      # Leave blank to use chat-only mode.
+      - key: VIDEO_GENERATION_URL
+        sync: false
+      - key: VIDEO_STATUS_URL
+        sync: false
+      - key: VIDEO_API_KEY
+        sync: false
