@@ -22,11 +22,12 @@ function getAI(){
 }
 const jobs=new Map();
 
-const CHAT_SYSTEM=`You are SUPER AI STUDIO, a helpful AI assistant and creative video editor.
-Understand Tamil, English and Tanglish. Reply naturally and concisely.
-When the user asks about video creation, explain practical scene-based generation when needed.
-Do not claim that a video was generated unless the generation endpoint actually returned a completed job.
-If the user asks for an editing plan, you can describe it clearly.`;
+const CHAT_SYSTEM=`You are SUPER AI STUDIO — an expert creative assistant specialized in video scripting, short-form reels, and Tamil/Tanglish content creation, alongside general helpful chat.
+Understand Tamil, English and Tanglish fluently, and reply in the same language/mix the user used.
+When writing scripts or scene plans: structure them clearly with scene numbers, visuals, voiceover/dialogue lines, and camera/transition notes. Match the tone requested (comedy, horror, motivational, thriller, etc).
+You are a TEXT-ONLY model. You CANNOT generate, render, or produce any actual video, image, or audio file yourself — you only write scripts, scene plans, and editing ideas in text.
+NEVER say phrases like "I've generated the video", "here is your video", or "video created" — you have not created anything. If asked to "create/generate a video", write the scene-by-scene script/plan in text, and mention that actual rendering needs a configured video-generation provider.
+Be concise for simple chat, but be thorough and detailed for script/creative requests.`;
 
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"SUPER AI STUDIO",time:new Date().toISOString()}));
 
@@ -38,10 +39,41 @@ app.post("/api/ai/chat",async(req,res)=>{
       .map(x=>({role:x.role==="assistant"?"assistant":"user",content:String(x.content||"")}));
     const r=await getAI().chat.completions.create({
       model:process.env.GROQ_MODEL||"llama-3.3-70b-versatile",
+      temperature:mode==="studio"?0.9:0.7,
       messages:[{role:"system",content:CHAT_SYSTEM},...input]
     });
     res.json({ok:true,message:r.choices?.[0]?.message?.content?.trim()||"I couldn't generate a response."});
   }catch(e){console.error(e);res.status(500).json({ok:false,message:e.message||"AI request failed."})}
+});
+
+// Streaming version — sends the reply token-by-token as it's generated (Server-Sent Events)
+app.post("/api/ai/chat/stream",async(req,res)=>{
+  try{
+    const {message="",mode="chat",history=[]}=req.body||{};
+    if(!message.trim())return res.status(400).json({ok:false,message:"Message is required."});
+    const input=[...history.slice(-10),{role:"user",content:`Mode: ${mode}\nUser: ${message}`}]
+      .map(x=>({role:x.role==="assistant"?"assistant":"user",content:String(x.content||"")}));
+    res.setHeader("Content-Type","text/event-stream");
+    res.setHeader("Cache-Control","no-cache");
+    res.setHeader("Connection","keep-alive");
+    res.flushHeaders?.();
+    const stream=await getAI().chat.completions.create({
+      model:process.env.GROQ_MODEL||"llama-3.3-70b-versatile",
+      temperature:mode==="studio"?0.9:0.7,
+      messages:[{role:"system",content:CHAT_SYSTEM},...input],
+      stream:true
+    });
+    req.on("close",()=>{try{stream.controller?.abort()}catch{}});
+    for await(const part of stream){
+      const t=part.choices?.[0]?.delta?.content;
+      if(t)res.write(`data: ${JSON.stringify({token:t})}\n\n`);
+    }
+    res.write(`data: ${JSON.stringify({done:true})}\n\n`);
+    res.end();
+  }catch(e){
+    console.error(e);
+    try{res.write(`data: ${JSON.stringify({error:e.message||"AI request failed."})}\n\n`);res.end()}catch{}
+  }
 });
 
 const PLAN_SYSTEM=`You are a professional long-form video director.
