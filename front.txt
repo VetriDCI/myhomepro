@@ -1,0 +1,258 @@
+
+<div class="composer-wrap">
+  <div class="composer" id="composer">
+    <div class="dropzone" id="dropzone">Drop images or videos here</div>
+    <div class="menu" id="plusMenu">
+      <button onclick="choose('media')">📎 Add images + videos<small>Select multiple files</small></button>
+      <button onclick="choose('image')">🖼️ Add images<small>Select multiple images</small></button>
+      <button onclick="choose('video')">🎥 Add videos<small>Select multiple videos</small></button>
+      <button onclick="clearFiles()">🗑️ Remove all attachments</button>
+    </div>
+    <textarea class="prompt" id="prompt" placeholder="Message SUPER AI STUDIO..." oninput="resizePrompt(this);toggleSend()" onkeydown="handleKey(event)"></textarea>
+    <div class="previewbar" id="previewbar"></div>
+    <div class="composerbar">
+      <button class="plus" onclick="toggleMenu()" title="Add image or video">+</button>
+      <div class="modebar">
+        <button class="mode active" data-mode="chat" onclick="setMode(this)">Chat</button>
+        <button class="mode" data-mode="studio" onclick="setMode(this)">Studio</button>
+        <button class="mode" data-mode="math" onclick="setMode(this)">Math</button><span class="mode-note" id="modeNote">General chat</span>
+      </div>
+      <button class="send" id="send" disabled onclick="handleSendClick()">↑</button>
+    </div>
+  </div>
+  <div class="hint">Enter to send • Shift+Enter for new line • Drop files into the box</div>
+</div>
+</main>
+</div>
+
+<input class="file" id="mediaInput" type="file" accept="image/*,video/*" multiple>
+<input class="file" id="imageInput" type="file" accept="image/*" multiple>
+<input class="file" id="videoInput" type="file" accept="video/*" multiple>
+
+<div class="modal" id="settingsModal" onclick="if(event.target===this)closeSettings()">
+<div class="settings">
+<h2>⚙ Settings</h2>
+<div class="setting"><label>Backend URL</label><input id="sBackend" placeholder="http://localhost:3000"></div>
+<div class="setting"><label>AI model label</label><input id="sModel" placeholder="AI"></div>
+<div class="setting"><label>Default mode</label><select id="sMode"><option value="chat">Chat</option><option value="studio">Studio</option><option value="math">Math</option></select></div>
+<div class="setting"><label>Theme</label><select id="sTheme"><option value="dark">Dark</option><option value="light">Light</option></select></div>
+<div class="setting"><label>Send on Enter</label><div class="switch"><input type="checkbox" id="sEnter"> Enable</div></div>
+<div class="setting"><label>Auto save chats</label><div class="switch"><input type="checkbox" id="sSave"> Enable</div></div>
+<div class="setting"><label>Voice input</label><div class="switch"><input type="checkbox" id="sVoice"> Show microphone button</div></div>
+<div class="setting"><label>Chat history</label><button onclick="clearHistory()" style="border:1px solid var(--line);background:#20252b;color:#fff;border-radius:8px;padding:9px 13px;cursor:pointer">🗑 Clear all saved chats</button></div>
+<div class="settings-actions"><button onclick="resetSettings()">Reset</button><button onclick="closeSettings()">Cancel</button><button class="save" onclick="saveSettings()">Save settings</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+let files=[],mode='chat',messages=[],sessionId=crypto.randomUUID(),activeController=null;
+
+const defaults={backend:window.location.origin,model:'AI',mode:'chat',theme:'dark',enter:true,save:true,voice:false};
+const MAX_VISION_IMAGES=5;
+const MAX_VISION_BYTES=2*1024*1024;
+let settings={...defaults,...JSON.parse(localStorage.getItem('sais-settings')||'{}')};
+
+function applySettings(){
+  $('modelLabel').textContent=settings.model||'AI';
+  document.body.dataset.theme=settings.theme;
+  if(settings.theme==='light'){
+    document.documentElement.style.setProperty('--bg','#e5e5e5');document.documentElement.style.setProperty('--panel','#ffffff');
+    document.documentElement.style.setProperty('--panel2','#f0f2f5');document.documentElement.style.setProperty('--line','#d7dbe1');document.documentElement.style.setProperty('--text','#151515');document.documentElement.style.setProperty('--muted','#66707b');
+    document.documentElement.style.colorScheme='light';
+  }else{
+    document.documentElement.style.setProperty('--bg','#151515');document.documentElement.style.setProperty('--panel','#111419');
+    document.documentElement.style.setProperty('--panel2','#181c22');document.documentElement.style.setProperty('--line','#2a3038');document.documentElement.style.setProperty('--text','#e5e5e5');document.documentElement.style.setProperty('--muted','#9aa3ad');
+    document.documentElement.style.colorScheme='dark';
+  }
+  const b=[...document.querySelectorAll('.mode')].find(x=>x.dataset.mode===settings.mode);if(b)setMode(b);
+  loadHistory();
+}
+function openSettings(){
+  $('sBackend').value=settings.backend;$('sModel').value=settings.model;$('sMode').value=settings.mode;$('sTheme').value=settings.theme;
+  $('sEnter').checked=settings.enter;$('sSave').checked=settings.save;$('sVoice').checked=settings.voice;
+  $('settingsModal').classList.add('show');
+}
+function closeSettings(){$('settingsModal').classList.remove('show')}
+function saveSettings(){
+  settings={backend:$('sBackend').value.trim().replace(/\/$/,''),model:$('sModel').value.trim()||'AI',mode:$('sMode').value,theme:$('sTheme').value,enter:$('sEnter').checked,save:$('sSave').checked,voice:$('sVoice').checked};
+  localStorage.setItem('sais-settings',JSON.stringify(settings));applySettings();closeSettings();toast('Settings saved');
+}
+function resetSettings(){settings={...defaults};localStorage.setItem('sais-settings',JSON.stringify(settings));openSettings();toast('Settings reset')}
+function toggleTheme(){settings.theme=settings.theme==='dark'?'light':'dark';localStorage.setItem('sais-settings',JSON.stringify(settings));applySettings()}
+function toast(t){const x=$('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),1800)}
+
+function toggleMenu(){$('plusMenu').classList.toggle('show')}
+document.addEventListener('click',e=>{if(!e.target.closest('.plus')&&!e.target.closest('#plusMenu'))$('plusMenu').classList.remove('show')});
+function choose(type){$('plusMenu').classList.remove('show');const el=type==='image'?$('imageInput'):type==='video'?$('videoInput'):$('mediaInput');el.value='';el.click()}
+$('mediaInput').onchange=e=>addFiles(e.target.files);$('imageInput').onchange=e=>addFiles(e.target.files);$('videoInput').onchange=e=>addFiles(e.target.files);
+function addFiles(list){
+  for(const f of list){
+    if(!(f.type.startsWith('image/')||f.type.startsWith('video/')))continue;
+    if(files.some(x=>x.name===f.name&&x.size===f.size))continue;
+    if(files.length>=12)break;
+    files.push(f);
+  }
+  renderFiles();toggleSend();updateAttachmentHint();
+}
+function clearFiles(){files=[];renderFiles();toggleSend();updateAttachmentHint()}
+function removeFile(i){files.splice(i,1);renderFiles();toggleSend();updateAttachmentHint()}
+function renderFiles(){
+  const bar=$('previewbar');bar.innerHTML='';
+  if(!files.length){bar.classList.remove('show');return}
+  bar.classList.add('show');
+  files.forEach((f,i)=>{const d=document.createElement('div');d.className='preview';const u=URL.createObjectURL(f);const m=f.type.startsWith('image/')?document.createElement('img'):document.createElement('video');m.src=u;if(m.tagName==='VIDEO'){m.muted=true;m.playsInline=true}d.appendChild(m);const x=document.createElement('button');x.className='x';x.textContent='×';x.onclick=()=>removeFile(i);d.appendChild(x);bar.appendChild(d)})
+}
+function setMode(btn){
+  document.querySelectorAll('.mode').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  mode=btn.dataset.mode;
+  const ph={chat:'Message SUPER AI STUDIO...',studio:'Describe your video, story, scene plan, or edit...',math:'Enter an equation, math problem, or upload a math image...'};
+  $('prompt').placeholder=ph[mode]||ph.chat;
+  $('modeNote').textContent=mode==='studio'?'Video / Script Studio':mode==='math'?'Math • MathML • LaTeX • HTML • SVG':'General chat + image understanding';
+  toggleSend();
+}
+function quick(t){$('prompt').value=t;resizePrompt($('prompt'));toggleSend();$('prompt').focus()}
+function resizePrompt(t){
+  t.style.height='auto';
+  const h=Math.min(t.scrollHeight,190);
+  t.style.height=h+'px';
+  const wrap=document.querySelector('.composer-wrap');
+  if(wrap)requestAnimationFrame(()=>{$('chat').style.paddingBottom=(wrap.offsetHeight+20)+'px'});
+}
+function toggleSend(){$('send').disabled=!$('prompt').value.trim()&&!files.length}
+function setGenerating(on){
+  const b=$('send');
+  if(on){b.classList.add('stop');b.textContent='■';b.disabled=false;b.title='Stop generating';}
+  else{b.classList.remove('stop');b.textContent='↑';b.title='Send';toggleSend();}
+}
+function handleSendClick(){
+  if(activeController){activeController.abort();return}
+  send();
+}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey&&settings.enter){e.preventDefault();handleSendClick()}}
+function escapeHTML(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+
+// Never expose model chain-of-thought, hidden reasoning, tool calls, or internal tags.
+function cleanAIResponse(text){
+  if(!text)return '';
+  let out=String(text);
+  const blocks=['think','thinking','analysis','reasoning','reflection','tool_call','tool','function','internal'];
+  for(const tag of blocks){
+    const re=new RegExp('<'+tag+'\\b[^>]*>[\\s\\S]*?<\\/'+tag+'>','gi');
+    out=out.replace(re,'');
+    // Hide an unfinished hidden block while the stream is still arriving.
+    const openRe=new RegExp('<'+tag+'\\b[^>]*>[\\s\\S]*$','i');
+    out=out.replace(openRe,'');
+  }
+  out=out.replace(/<\|[^>]+\|>/g,'');
+  return out.trim();
+}
+
+function addMessage(role,text,attached=[]){
+  $('empty')?.remove();const m=document.createElement('div');m.className='msg '+(role==='user'?'user':'');
+  m.innerHTML='<div class="avatar">'+(role==='user'?'U':'✦')+'</div><div class="bubble">'+escapeHTML(text).replace(/\n/g,'<br>')+'</div>';
+  if(attached.length){const wrap=document.createElement('div');wrap.className='attachments';attached.forEach(f=>{const a=document.createElement('div');a.className='att';const u=URL.createObjectURL(f);const med=f.type.startsWith('image/')?document.createElement('img'):document.createElement('video');med.src=u;if(med.tagName==='VIDEO'){med.controls=true;med.muted=true}a.appendChild(med);const n=document.createElement('div');n.className='attname';n.textContent=f.name;a.appendChild(n);wrap.appendChild(a)});m.querySelector('.bubble').appendChild(wrap)}
+  $('messages').appendChild(m);$('chat').scrollTop=999999;return m
+}
+function addTyping(){const m=document.createElement('div');m.className='msg';m.id='typing';m.innerHTML='<div class="avatar">✦</div><div class="bubble"><div class="typing"><i></i><i></i><i></i></div></div>';$('messages').appendChild(m);$('chat').scrollTop=999999}
+function removeTyping(){$('typing')?.remove()}
+
+async function fileToVisionDataURL(file){
+  if(!file.type.startsWith('image/'))return null;
+  const raw=await file.arrayBuffer();
+  if(raw.byteLength<=MAX_VISION_BYTES){
+    let binary='';const bytes=new Uint8Array(raw);const chunk=0x8000;
+    for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+    return `data:${file.type};base64,${btoa(binary)}`;
+  }
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=url});
+    const max=2048,scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    return canvas.toDataURL('image/jpeg',0.82);
+  }finally{URL.revokeObjectURL(url)}
+}
+async function prepareVisionImages(attached){
+  const images=attached.filter(f=>f.type.startsWith('image/')).slice(0,MAX_VISION_IMAGES);
+  const out=[];
+  for(const f of images){
+    try{out.push({name:f.name,type:'image',data:await fileToVisionDataURL(f)})}catch{}
+  }
+  return out.filter(x=>x.data);
+}
+function updateAttachmentHint(){
+  const note=$('modeNote');
+  if(!note)return;
+  const count=files.filter(f=>f.type.startsWith('image/')).length;
+  note.textContent=count?(mode==='studio'?`Studio • ${count} image${count>1?'s':''}`:mode==='math'?`Math Vision • ${count} image${count>1?'s':''}`:`Vision • ${count} image${count>1?'s':''}`):(mode==='studio'?'Video / Script Studio':mode==='math'?'Math • MathML • LaTeX • HTML • SVG':'General chat + image understanding');
+}
+
+async function send(){
+  const text=$('prompt').value.trim();if(!text&&!files.length)return;
+  const sentFiles=[...files];
+  const visionImages=await prepareVisionImages(sentFiles);
+  addMessage('user',text||'Media attached',sentFiles);
+  messages.push({role:'user',content:text,mode,files:sentFiles.map(f=>f.name)});
+  $('prompt').value='';resizePrompt($('prompt'));files=[];renderFiles();toggleSend();updateAttachmentHint();saveCurrent();addTyping();
+  activeController=new AbortController();const controller=activeController;setGenerating(true);
+
+  let full='';
+  try{
+    const r=await fetch(settings.backend+'/api/ai/chat/stream',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text,mode,history:messages.slice(-10),images:visionImages}),
+      signal:controller.signal
+    });
+    if(!r.ok||!r.body){const d=await r.json().catch(()=>({}));throw new Error(d.message||'AI request failed')}
+    removeTyping();
+    const bubbleEl=addMessage('assistant','');const bubble=bubbleEl.querySelector('.bubble');
+    const reader=r.body.getReader();const decoder=new TextDecoder();let buf='';
+    while(true){
+      const {done,value}=await reader.read();if(done)break;
+      buf+=decoder.decode(value,{stream:true});
+      const parts=buf.split('\n\n');buf=parts.pop();
+      for(const part of parts){
+        const line=part.trim();if(!line.startsWith('data:'))continue;
+        let payload;try{payload=JSON.parse(line.slice(5).trim())}catch{continue}
+        if(payload.error)throw new Error(payload.error);
+        if(payload.token){full+=payload.token;const visible=cleanAIResponse(full);bubble.innerHTML=escapeHTML(visible).replace(/\n/g,'<br>');$('chat').scrollTop=999999}
+      }
+    }
+    const finalAnswer=cleanAIResponse(full);
+    if(!finalAnswer)bubble.textContent="I couldn't generate a response.";
+    else bubble.innerHTML=escapeHTML(finalAnswer).replace(/\n/g,'<br>');
+    messages.push({role:'assistant',content:finalAnswer});saveCurrent();
+  }catch(e){
+    removeTyping();
+    if(e.name==='AbortError'){const stopped=cleanAIResponse(full);if(stopped.trim())messages.push({role:'assistant',content:stopped});else addMessage('assistant','⏹ Stopped.');saveCurrent()}
+    else addMessage('assistant','❌ '+e.message);
+  }finally{
+    activeController=null;setGenerating(false);
+  }
+}
+
+function newChat(){sessionId=crypto.randomUUID();messages=[];$('messages').innerHTML='<div class="empty" id="empty"><h1>What can I create for you?</h1></div>';files=[];renderFiles();toggleSend();toast('New chat')}
+function saveCurrent(){if(!settings.save||!messages.length)return;const all=JSON.parse(localStorage.getItem('sais-chats')||'[]');const item={id:sessionId,title:messages.find(x=>x.role==='user')?.content?.slice(0,45)||'New chat',messages,updated:Date.now()};const idx=all.findIndex(x=>x.id===sessionId);if(idx>=0)all[idx]=item;else all.unshift(item);localStorage.setItem('sais-chats',JSON.stringify(all.slice(0,40)));loadHistory()}
+function loadHistory(){const h=$('history');h.innerHTML='';const all=JSON.parse(localStorage.getItem('sais-chats')||'[]');all.forEach(x=>{const d=document.createElement('div');d.className='chatrow '+(x.id===sessionId?'active':'');d.innerHTML='<span class="dot"></span><span class="title">'+escapeHTML(x.title)+'</span><button class="del" title="Delete chat">✕</button>';d.onclick=()=>restoreChat(x);d.querySelector('.del').onclick=(e)=>{e.stopPropagation();deleteChat(x.id)};h.appendChild(d)})}
+function deleteChat(id){
+  if(!confirm('Delete this chat?'))return;
+  const all=JSON.parse(localStorage.getItem('sais-chats')||'[]').filter(x=>x.id!==id);
+  localStorage.setItem('sais-chats',JSON.stringify(all));
+  if(id===sessionId)newChat();
+  loadHistory();toast('Chat deleted');
+}
+function restoreChat(x){sessionId=x.id;messages=x.messages||[];$('messages').innerHTML='';messages.forEach(m=>{if(m.role==='user'||m.role==='assistant')addMessage(m.role,m.content||'')});loadHistory()}
+function clearHistory(){if(confirm('Clear saved chat history?')){localStorage.removeItem('sais-chats');loadHistory();toast('History cleared')}}
+function setupDrop(){
+  const c=$('composer');['dragenter','dragover'].forEach(ev=>c.addEventListener(ev,e=>{e.preventDefault();$('dropzone').classList.add('show')}));
+  ['dragleave','drop'].forEach(ev=>c.addEventListener(ev,e=>{e.preventDefault();$('dropzone').classList.remove('show')}));
+  c.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+}
+setupDrop();applySettings();toggleSend();resizePrompt($('prompt'));updateAttachmentHint();
+</script>
+</body>
+</html>

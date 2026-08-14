@@ -82,3 +82,7 @@ Render free plan la, 15 mins traffic illana service "sleep" aagum. Adhu again fi
 ## 5-min Video generation feature (Optional)
 
 Idhu venumna, `VIDEO_GENERATION_URL`, `VIDEO_STATUS_URL`, `VIDEO_API_KEY` — moonrum oru external video-generation provider (example: Runway, Pika, Replicate) API la irundhu edukanum. Idhu illama chat mode full ah work aagum, video-generation mattum "Configure..." error tharum.
+
+
+### Code Doctor
+Select **Code Doctor** in the UI, then use **+ → Add code / project**. You can choose source files or a ZIP project. The browser extracts supported text files from ZIPs before sending them to the backend. Keep GROQ_API_KEY only on the server; never put it in frontend code.

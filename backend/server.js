@@ -40,7 +40,23 @@ If an image is attached, use it as a visual reference when creating the script o
 Do not claim that a finished video file has been rendered unless a real rendering endpoint has returned one.
 Be specific and production-ready.`;
 
-function systemFor(mode){return mode==='studio'?STUDIO_SYSTEM:CHAT_SYSTEM;}
+const CODE_SYSTEM=`You are SUPER AI STUDIO Code Doctor — an expert code reviewer, debugger, fixer, security reviewer, and project repair assistant.
+Understand Tamil, English and Tanglish. Analyze normal and advanced code carefully. Supported languages include HTML, CSS, JavaScript, TypeScript, React, Node.js, Python, Java, C, C++, C#, PHP, SQL, JSON, XML, YAML, Markdown, MathML, LaTeX, shell scripts, and common configuration files.
+Find syntax errors, runtime/logic bugs, API mistakes, missing imports/tags/braces, type issues, security problems, performance problems, compatibility problems, and integration mistakes. For uploaded projects, inspect relationships between files and identify likely broken imports, paths, endpoints, or configuration.
+Return a practical report with: 1) errors found, 2) severity, 3) file/line when inferable, 4) why it is wrong, 5) fixed code, and 6) test/verification steps. Preserve working behavior and do not rewrite unrelated code. If the user asks to fix everything, provide the corrected complete code or the exact replacement blocks. Never expose chain-of-thought, hidden reasoning, internal tags, or tool calls.
+If a ZIP/project is supplied as extracted text, treat file names and contents as a single project. Do not claim code was executed unless an execution endpoint actually ran it.
+Be precise, conservative, and explicit about what was verified versus inferred.`;
+
+const MATH_SYSTEM=`You are SUPER AI STUDIO Math Lab — an expert mathematics assistant and notation/code converter.
+Understand Tamil, English and Tanglish. Solve mathematics accurately and explain steps when useful.
+You can read typed or uploaded mathematical expressions/images and convert them into multiple machine-readable and display formats.
+Supported outputs include: MathML (presentation MathML), LaTeX, HTML+MathML, Unicode/plain-text math, AsciiMath, and SVG source when requested. You may also provide JSON describing the expression when requested.
+For a conversion request, preserve mathematical meaning exactly, correct obvious OCR mistakes, and make syntax valid. For MathML, use valid MathML using the standard MathML namespace and structure and prefer semantic structure such as mfrac, msup, msub, msqrt, mroot, mrow, mi, mn, mo.
+If an image is attached, inspect it carefully and transcribe the equation before converting it. Never invent symbols that are not visible.
+Default for broad requests such as “convert this to all formats” is to return these sections in order: Corrected equation, MathML, LaTeX, HTML/MathML, Unicode, AsciiMath, and SVG only if it adds value.
+Keep code inside fenced code blocks and never expose hidden reasoning, chain-of-thought, analysis traces, tool calls, or internal tags.`;
+
+function systemFor(mode){return mode==='studio'?STUDIO_SYSTEM:mode==='math'?MATH_SYSTEM:mode==='code'?CODE_SYSTEM:CHAT_SYSTEM;}
 function hasVisionImages(images){return Array.isArray(images)&&images.some(x=>x&&typeof x.data==='string'&&x.data.startsWith('data:image/'));}
 function visionInstruction(message,images){
   const lower=String(message||'').toLowerCase();
@@ -66,6 +82,35 @@ function buildHistory(history,message){
   if(last?.role==='user'&&String(last.content||'')===String(message||''))h.pop();
   return h.slice(-10).map(x=>({role:x.role==='assistant'?'assistant':'user',content:String(x.content||'')}));
 }
+function codeContext(codeFiles){
+  if(!Array.isArray(codeFiles)||!codeFiles.length)return null;
+  const usable=codeFiles.slice(0,80).map(f=>({name:String(f.name||'unknown'),content:String(f.content||'').slice(0,120000)}));
+  const total=usable.reduce((n,f)=>n+f.content.length,0);
+  if(total>300000){
+    let remaining=300000;
+    for(const f of usable){const take=Math.max(0,Math.min(f.content.length,remaining));f.content=f.content.slice(0,take);remaining-=take;}
+  }
+  return `\n\nUPLOADED CODE PROJECT (${usable.length} files):\n${usable.map(f=>`\n===== FILE: ${f.name} =====\n${f.content}`).join('\n')}\n===== END PROJECT =====`;
+}
+
+function codeStaticHints(codeFiles){
+  if(!Array.isArray(codeFiles))return [];
+  const hints=[];
+  for(const f of codeFiles){
+    const name=String(f.name||''); const c=String(f.content||'');
+    if(/\.html?$/i.test(name)){
+      const opens=(c.match(/<([a-z][\w-]*)\b[^>]*>/gi)||[]).length;
+      const closes=(c.match(/<\\\/([a-z][\w-]*)>/gi)||[]).length;
+      if(/<script[^>]*src=["'](?:\\|[A-Za-z]:|file:)/i.test(c))hints.push(`${name}: possible local file:// or absolute script path; use a web-relative path.`);
+      if(/<img[^>]+src=["'][A-Za-z]:\\/i.test(c))hints.push(`${name}: Windows absolute image path found; browser deployment will usually fail. Use a relative/public path.`);
+    }
+    if(/\.json$/i.test(name)){try{JSON.parse(c)}catch(e){hints.push(`${name}: invalid JSON syntax (${e.message}).`);}}
+    if(/\.(js|mjs|cjs|ts|tsx)$/i.test(name)&&/document\.getElementById\(["'][^"']+["']\)/.test(c)&&/getElementById\(["']([^"']+)["']\)/.test(c)){}
+    if(/(api[_-]?key|secret|password|token)\s*[:=]\s*["'][^"']{8,}["']/i.test(c))hints.push(`${name}: possible hard-coded secret/API key. Move secrets to environment variables.`);
+  }
+  return hints.slice(0,30);
+}
+
 function selectChatModel(images){
   return hasVisionImages(images)
     ? (process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b')
@@ -86,15 +131,17 @@ app.get("/api/health",(req,res)=>res.json({ok:true,service:"SUPER AI STUDIO",tim
 
 app.post("/api/ai/chat",async(req,res)=>{
   try{
-    const {message="",mode="chat",history=[],images=[]}=req.body||{};
-    if(!message.trim()&&!hasVisionImages(images))return res.status(400).json({ok:false,message:"Message or image is required."});
+    const {message="",mode="chat",history=[],images=[],codeFiles=[]}=req.body||{};
+    if(!message.trim()&&!hasVisionImages(images)&&!codeFiles.length)return res.status(400).json({ok:false,message:"Message, image, or code project is required."});
     const input=buildHistory(history,message);
     const instruction=visionInstruction(message,images);
+    const codeExtra=mode==='code'?codeContext(codeFiles):null;
+    const staticHints=mode==='code'?codeStaticHints(codeFiles):[];
     if(instruction)input.push({role:'system',content:instruction});
-    input.push({role:"user",content:buildUserContent(message,images)});
+    input.push({role:"user",content:buildUserContent(message,images)+(codeExtra||"")+((staticHints.length)?`\n\nPRE-SCAN HINTS (verify these; do not blindly trust them):\n- ${staticHints.join("\n- ")}`:"")});
     const r=await getAI().chat.completions.create({
-      model:selectChatModel(images),
-      temperature:mode==="studio"?0.9:0.7,
+      model:hasVisionImages(images)?(process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'):(mode==='code'?(process.env.GROQ_MODEL||'llama-3.3-70b-versatile'):selectChatModel(images)),
+      temperature:mode==="studio"?0.9:mode==="math"?0.2:0.7,
       messages:[{role:"system",content:systemFor(mode)},...input]
     });
     res.json({ok:true,message:cleanAIResponse(r.choices?.[0]?.message?.content)||"I couldn't generate a response."});
@@ -104,19 +151,21 @@ app.post("/api/ai/chat",async(req,res)=>{
 // Streaming chat supports normal text chat plus image understanding/alt text.
 app.post("/api/ai/chat/stream",async(req,res)=>{
   try{
-    const {message="",mode="chat",history=[],images=[]}=req.body||{};
-    if(!message.trim()&&!hasVisionImages(images))return res.status(400).json({ok:false,message:"Message or image is required."});
+    const {message="",mode="chat",history=[],images=[],codeFiles=[]}=req.body||{};
+    if(!message.trim()&&!hasVisionImages(images)&&!codeFiles.length)return res.status(400).json({ok:false,message:"Message, image, or code project is required."});
     const input=buildHistory(history,message);
     const instruction=visionInstruction(message,images);
+    const codeExtra=mode==='code'?codeContext(codeFiles):null;
+    const staticHints=mode==='code'?codeStaticHints(codeFiles):[];
     if(instruction)input.push({role:'system',content:instruction});
-    input.push({role:"user",content:buildUserContent(message,images)});
+    input.push({role:"user",content:buildUserContent(message,images)+(codeExtra||"")+((staticHints.length)?`\n\nPRE-SCAN HINTS (verify these; do not blindly trust them):\n- ${staticHints.join("\n- ")}`:"")});
     res.setHeader("Content-Type","text/event-stream");
     res.setHeader("Cache-Control","no-cache");
     res.setHeader("Connection","keep-alive");
     res.flushHeaders?.();
     const stream=await getAI().chat.completions.create({
-      model:selectChatModel(images),
-      temperature:mode==="studio"?0.9:0.7,
+      model:hasVisionImages(images)?(process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'):(mode==='code'?(process.env.GROQ_MODEL||'llama-3.3-70b-versatile'):selectChatModel(images)),
+      temperature:mode==="studio"?0.9:mode==="math"?0.2:0.7,
       messages:[{role:"system",content:systemFor(mode)},...input],
       stream:true
     });
