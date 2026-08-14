@@ -1,103 +1,8 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="dark light">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23151515'/%3E%3Cpath d='M50 18 L61 42 L86 46 L67 63 L72 88 L50 75 L28 88 L33 63 L14 46 L39 42 Z' fill='%237c5cff'/%3E%3C/svg%3E">
-<title>SUPER AI STUDIO</title>
-<style>
-:root{--bg:#151515;--panel:#111419;--panel2:#181c22;--line:#2a3038;--text:#e5e5e5;--muted:#9aa3ad;--accent:#7c5cff;--accent2:#00c2ff;--danger:#ff5b63;color-scheme:dark}
-*{box-sizing:border-box}html,body{height:100%;margin:0}body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
-*::-webkit-scrollbar{width:10px;height:10px}*::-webkit-scrollbar-track{background:transparent}*::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;border:2px solid transparent;background-clip:padding-box}*::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:padding-box}*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-button,select,textarea,input{font:inherit}.app{display:flex;height:100vh}
-.sidebar{width:265px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:12px;flex:none}
-.brand{padding:12px 10px 18px;font-weight:800;letter-spacing:.4px;font-size:18px}.brand span{color:#9d8cff}
-.newchat{height:42px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);text-align:left;padding:0 12px;cursor:pointer;transition:background .15s}.newchat:hover,.chatrow:hover{background:#333c48;color:#fff}
-.side-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em;padding:20px 10px 7px}.history{overflow:auto}.chatrow{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;color:var(--text);font-size:13px;cursor:pointer}.chatrow .dot{width:6px;height:6px;border-radius:50%;background:#5c6672;flex:none}.chatrow.active .dot{background:#8d78ff}.chatrow .title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chatrow .del{flex:none;width:22px;height:22px;border:0;background:transparent;color:var(--muted);border-radius:6px;cursor:pointer;font-size:13px;display:none;align-items:center;justify-content:center}.chatrow:hover .del{display:flex}.chatrow .del:hover{background:var(--danger);color:#fff}
-.main{flex:1;min-width:0;display:flex;flex-direction:column}.topbar{height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;position:relative;background:var(--panel)}.modelname{font-size:14px;font-weight:750;color:var(--text)}.modelname small{color:var(--muted);font-weight:450;margin-left:5px}.top-actions{position:absolute;right:12px;display:flex;gap:7px}.top-actions button{width:35px;height:35px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:8px;cursor:pointer}
-.chat{flex:1;overflow:auto;padding:25px 18px 175px}.messages{max-width:880px;margin:auto}.empty{min-height:65vh;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center}.empty h1{font-size:30px;margin:0 0 8px}.empty p{color:var(--muted);margin:0}.empty .quick{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:18px}.quick button{border:1px solid var(--line);background:#14181d;color:#dce1e6;border-radius:10px;padding:8px 11px;cursor:pointer;font-size:12px}
-.msg{display:flex;gap:11px;margin:24px 0}.msg.user{flex-direction:row-reverse;text-align:right}.avatar{width:31px;height:31px;flex:none;border-radius:8px;background:var(--panel2);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:12px}.user .avatar{background:var(--accent);color:#fff}.bubble{max-width:800px;line-height:1.58;font-size:14px;min-width:0;color:var(--text)}.bubble h1,.bubble h2,.bubble h3,.bubble h4,.bubble h5,.bubble h6{margin:12px 0 6px;line-height:1.25}.bubble h1{font-size:20px}.bubble h2{font-size:18px}.bubble h3{font-size:16px}.bubble ul{margin:6px 0 10px;padding-left:22px}.bubble li{margin:3px 0}.md-code{margin:9px 0;padding:11px 12px;overflow:auto;background:#0b0e12;border:1px solid var(--line);border-radius:9px;color:#e8edf2;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre}.md-inline{background:#0f1318;border:1px solid var(--line);border-radius:4px;padding:1px 4px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em}.user .bubble{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:11px 14px;margin-left:auto}.meta{color:var(--muted);font-size:10px;margin-top:7px}.typing{display:flex;gap:4px;align-items:center}.typing i{width:6px;height:6px;border-radius:50%;background:#9da6b1;animation:b 1s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}@keyframes b{50%{opacity:.2}}
-.attachments{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}.att{width:155px;background:#101419;border:1px solid var(--line);border-radius:9px;overflow:hidden}.att img,.att video{width:100%;height:95px;object-fit:cover;display:block}.attname{padding:6px;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.composer-wrap{position:fixed;left:265px;right:0;bottom:0;padding:28px 18px 17px;background:linear-gradient(transparent,var(--bg) 28%);z-index:5}.composer{max-width:880px;margin:auto;border:1px solid #343a43;background:#171b20;border-radius:16px;box-shadow:0 14px 45px #000a;position:relative}.prompt{width:100%;min-height:62px;max-height:190px;resize:none;border:0;outline:0;background:transparent;color:#fff;padding:14px 14px 4px}.composerbar{display:flex;align-items:center;gap:7px;padding:8px 9px}.plus{width:38px;height:38px;border:1px solid #3b4149;background:#20252b;color:#fff;border-radius:10px;font-size:24px;line-height:1;cursor:pointer}.plus:hover{background:#2a3038}.send{margin-left:auto;width:38px;height:38px;border:0;border-radius:10px;background:#fff;color:#111;font-weight:800;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}.send:disabled{opacity:.3}.send.stop{background:var(--danger);color:#fff}.mode{border:1px solid var(--line);background:#12161a;color:#bfc6cd;border-radius:999px;padding:6px 9px;font-size:11px;cursor:pointer}.mode.active{background:#2a2147;border-color:#6650bf;color:#fff}.mode[data-mode=studio].active{background:#1f2440;border-color:#596fe0}.mode[data-mode=math].active{background:#243b2b;border-color:#4f9d68}.mode[data-mode=code].active{background:#3b2d1d;border-color:#b67b38}.mode-note{font-size:10px;color:var(--muted);margin-left:2px;white-space:nowrap}.modebar{display:flex;gap:6px;align-items:center;overflow:auto}.previewbar{display:none;border-top:1px solid var(--line);padding:8px;gap:8px;overflow:auto}.previewbar.show{display:flex}.preview{position:relative;flex:none;width:78px;height:58px;background:#0d1014;border:1px solid var(--line);border-radius:8px;overflow:hidden}.preview img,.preview video{width:100%;height:100%;object-fit:cover}.preview .x{position:absolute;right:3px;top:3px;width:19px;height:19px;border:0;border-radius:50%;background:#000b;color:#fff;cursor:pointer}.dropzone{position:absolute;inset:0;background:#171b20eF;display:none;align-items:center;justify-content:center;z-index:10;border-radius:16px;border:2px dashed #705be0;color:#fff}.dropzone.show{display:flex}
-.hint{text-align:center;color:#69727d;font-size:10px;margin-top:7px}.menu{position:absolute;left:9px;bottom:55px;width:255px;background:#171b20;border:1px solid #363c45;border-radius:12px;box-shadow:0 16px 45px #000c;padding:6px;display:none;z-index:30}.menu.show{display:block}.menu button{width:100%;border:0;background:transparent;color:#edf0f3;text-align:left;padding:11px;border-radius:8px;cursor:pointer;font-size:13px}.menu button:hover{background:#242a31}.menu small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
-.file{display:none}
-.output-list{display:flex;flex-direction:column;gap:10px;margin-top:10px;max-width:620px}.output-card{border:1px solid var(--line);background:#101419;border-radius:10px;padding:9px;overflow:hidden}.output-title{font-size:11px;color:#cfd5dc;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.output-card img,.output-card video{display:block;width:100%;max-height:420px;object-fit:contain;border-radius:7px;background:#080a0d}.output-card audio{display:block;width:100%}.output-card iframe{display:block;width:100%;height:420px;border:0;border-radius:7px;background:#fff}.output-download{display:inline-flex;margin-top:8px;border:1px solid var(--line);background:#171b20;color:#e7ebef;border-radius:7px;padding:7px 10px;font-size:11px;text-decoration:none}.output-download:hover{background:#242a31;color:#fff}.file-chip{display:flex;align-items:center;gap:7px;width:170px;height:58px;padding:7px 9px;background:#101419;border:1px solid var(--line);border-radius:8px;color:#dfe4e9}.file-chip .fi{font-size:20px;flex:none}.file-chip .fn{min-width:0;overflow:hidden}.file-chip .fn b{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.file-chip .fn small{display:block;color:var(--muted);font-size:9px;margin-top:3px}.folder-note{font-size:10px;color:var(--muted);padding:4px 2px}
-.modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:50}.modal.show{display:flex}.settings{width:min(650px,92vw);max-height:85vh;overflow:auto;background:#15191e;border:1px solid #363c44;border-radius:16px;box-shadow:0 25px 80px #000; padding:18px}.settings h2{margin:0 0 14px;font-size:18px;color:#fff}.setting{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}.setting label{font-size:12px;color:#c9cfd6}.setting input,.setting select{width:100%;background:#0f1317;color:#fff;border:1px solid var(--line);border-radius:8px;padding:9px;outline:0}.switch{display:flex;align-items:center;gap:8px}.settings-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:14px}.settings-actions button{border:1px solid var(--line);background:#20252b;color:#fff;border-radius:8px;padding:9px 13px;cursor:pointer}.settings-actions .save{background:var(--accent);border-color:var(--accent)}
-.toast{position:fixed;right:18px;top:72px;background:#171b20;color:#fff;border:1px solid #363c44;padding:10px 13px;border-radius:9px;display:none;z-index:80;font-size:12px}.toast.show{display:block}
-@media(max-width:820px){.sidebar{display:none}.composer-wrap{left:0}.chat{padding-left:10px;padding-right:10px}.modebar{max-width:calc(100vw - 100px)}}
-</style>
-</head>
-<body>
-<div class="app">
-<aside class="sidebar">
-  <div class="brand">✦ SUPER <span>AI STUDIO</span></div>
-  <button class="newchat" onclick="newChat()">＋ New chat</button>
-  <div class="side-label">Recent chats</div>
-  <div class="history" id="history"></div>
-</aside>
 
-<main class="main">
-<header class="topbar">
-  <div class="modelname">SUPER AI STUDIO <small id="modelLabel">AI</small></div>
-  <div class="top-actions">
-    <button onclick="toggleTheme()" title="Theme">◐</button>
-    <button onclick="openSettings()" title="Settings">⚙</button>
-  </div>
-</header>
 
-<section class="chat" id="chat">
-  <div class="messages" id="messages">
-    <div class="empty" id="empty">
-      <h1>Ready when you are.</h1>
-    </div>
-  </div>
-</section>
 
-<div class="composer-wrap">
-  <div class="composer" id="composer">
-    <div class="dropzone" id="dropzone">Drop files here</div>
-    <div class="menu" id="plusMenu">
-      <button onclick="choose('all')">📎 Add files<small>Images, video, audio, PDF, Word, ZIP and more</small></button>
-      <button onclick="choose('folder')">📁 Add folder<small>Select a complete project/document folder</small></button>
-      <button onclick="clearFiles()">🗑️ Remove all attachments</button>
-    </div>
-    <textarea class="prompt" id="prompt" placeholder="Ask anything" oninput="resizePrompt(this);toggleSend()" onkeydown="handleKey(event)"></textarea>
-    <div class="previewbar" id="previewbar"></div>
-    <div class="composerbar">
-      <button class="plus" onclick="toggleMenu()" title="Add image or video">+</button>
-      <button class="send" id="send" disabled onclick="handleSendClick()">↑</button>
-    </div>
-  </div>
-  <div class="hint">Enter to send • Shift+Enter for new line • Drop files into the box</div>
-</div>
-</main>
-</div>
 
-<input class="file" id="allInput" type="file" accept="*/*" multiple>
-<input class="file" id="folderInput" type="file" webkitdirectory directory multiple>
 
-<div class="modal" id="settingsModal" onclick="if(event.target===this)closeSettings()">
-<div class="settings">
-<h2>⚙ Settings</h2>
-<div class="setting"><label>Backend URL</label><input id="sBackend" placeholder="http://localhost:3000"></div>
-<div class="setting"><label>AI model label</label><input id="sModel" placeholder="AI"></div>
-<div class="setting"><label>Default mode</label><select id="sMode"><option value="chat">Chat</option><option value="studio">Studio</option><option value="math">Math</option></select></div>
-<div class="setting"><label>Theme</label><select id="sTheme"><option value="dark">Dark</option><option value="light">Light</option></select></div>
-<div class="setting"><label>Send on Enter</label><div class="switch"><input type="checkbox" id="sEnter"> Enable</div></div>
-<div class="setting"><label>Auto save chats</label><div class="switch"><input type="checkbox" id="sSave"> Enable</div></div>
-<div class="setting"><label>Voice input</label><div class="switch"><input type="checkbox" id="sVoice"> Show microphone button</div></div>
-<div class="setting"><label>Chat history</label><button onclick="clearHistory()" style="border:1px solid var(--line);background:#20252b;color:#fff;border-radius:8px;padding:9px 13px;cursor:pointer">🗑 Clear all saved chats</button></div>
-<div class="settings-actions"><button onclick="resetSettings()">Reset</button><button onclick="closeSettings()">Cancel</button><button class="save" onclick="saveSettings()">Save settings</button></div>
-</div></div>
-
-<div class="toast" id="toast"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script>
 const $=id=>document.getElementById(id);
 let files=[],codeFiles=[],attachments=[],mode='chat',messages=[],sessionId=crypto.randomUUID(),activeController=null;
 
@@ -461,6 +366,3 @@ function setupDrop(){
   c.addEventListener('drop',e=>addAttachments(e.dataTransfer.files));
 }
 setupDrop();applySettings();renderAttachments();toggleSend();resizePrompt($('prompt'));updateAttachmentHint();
-</script>
-</body>
-</html>
