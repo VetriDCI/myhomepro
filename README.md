@@ -62,3 +62,11 @@ video-generation provider generates scene clips, and FFmpeg merges them.
 
 Different video providers have different API schemas. If needed, adapt only
 `providerGenerate()` and `providerWait()` in `backend/server.js`.
+
+## Chat + image understanding
+
+- **Chat** is general-purpose: normal questions, explanations, writing, coding, Tamil/Tanglish, etc.
+- Attach an image in Chat and the AI can inspect it, answer questions about it, read visible text, and generate accurate alt text.
+- **Studio** is kept specialized for video scripts, scene plans, narration, shots, transitions, and editing directions.
+- Image requests automatically use the configured `GROQ_VISION_MODEL` (default: `qwen/qwen3.6-27b`).
+- The browser compresses oversized images before sending them, and sends at most 5 images to the vision model.
