@@ -10,9 +10,8 @@ import { spawn } from "child_process";
 
 const __filename=fileURLToPath(import.meta.url),__dirname=path.dirname(__filename);
 const app=express(),PORT=Number(process.env.PORT||3000);
-app.use(cors());app.use(express.json({limit:"20mb"}));
-app.use(express.static(path.join(__dirname,"../frontend")));
-app.use("/generated",express.static(path.join(__dirname,"generated")));
+const uploadRoot=path.join(__dirname,"uploads");
+await fs.mkdir(uploadRoot,{recursive:true});
 
 let ai=null;
 function getAI(){
@@ -126,6 +125,24 @@ function cleanAIResponse(text){
   }
   return out.replace(/<\|[^>]+\|>/g,'').trim();
 }
+
+app.post("/api/files/upload",async(req,res)=>{
+  try{
+    const incoming=Array.isArray(req.body?.files)?req.body.files:[];
+    if(!incoming.length)return res.status(400).json({ok:false,message:"No files supplied."});
+    const out=[];
+    for(const f of incoming.slice(0,50)){
+      const data=String(f.data||"");
+      const m=data.match(/^data:[^;]+;base64,(.*)$/s);
+      if(!m)continue;
+      const ext=path.extname(String(f.name||"" )).toLowerCase();
+      const stored=crypto.randomUUID()+ext;
+      await fs.writeFile(path.join(uploadRoot,stored),Buffer.from(m[1],"base64"));
+      out.push({id:path.basename(stored,ext),name:String(f.name||"file"),storedName:stored,size:Math.round(m[1].length*.75),type:String(f.type||"application/octet-stream"),url:"/api/files/"+encodeURIComponent(stored)});
+    }
+    res.json({ok:true,files:out});
+  }catch(e){res.status(500).json({ok:false,message:e.message||"Upload failed."})}
+});
 
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"SUPER AI STUDIO",time:new Date().toISOString(),vision_model:process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'}));
 
