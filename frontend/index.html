@@ -164,10 +164,6 @@ function setMode(btn){
   const ph={chat:'Message SUPER AI STUDIO...',studio:'Describe your video, story, scene plan, or edit...'};
   $('prompt').placeholder=ph[mode]||ph.chat;
   $('modeNote').textContent=mode==='studio'?'Video / Script Studio':'General chat + image understanding';
-  const hint=mode==='studio'
-    ?'Studio mode: create video scripts, scene plans, narration, shots, transitions, and editing directions.'
-    :'Chat mode: ask anything normally. Add an image and I can describe it, read visible text, or generate accurate alt text.';
-  const eh=$('emptyHint');if(eh)eh.textContent=hint;
   toggleSend();
 }
 function quick(t){$('prompt').value=t;resizePrompt($('prompt'));toggleSend();$('prompt').focus()}
@@ -190,6 +186,22 @@ function handleSendClick(){
 }
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey&&settings.enter){e.preventDefault();handleSendClick()}}
 function escapeHTML(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+
+// Never expose model chain-of-thought, hidden reasoning, tool calls, or internal tags.
+function cleanAIResponse(text){
+  if(!text)return '';
+  let out=String(text);
+  const blocks=['think','thinking','analysis','reasoning','reflection','tool_call','tool','function','internal'];
+  for(const tag of blocks){
+    const re=new RegExp('<'+tag+'\\b[^>]*>[\\s\\S]*?<\\/'+tag+'>','gi');
+    out=out.replace(re,'');
+    // Hide an unfinished hidden block while the stream is still arriving.
+    const openRe=new RegExp('<'+tag+'\\b[^>]*>[\\s\\S]*$','i');
+    out=out.replace(openRe,'');
+  }
+  out=out.replace(/<\|[^>]+\|>/g,'');
+  return out.trim();
+}
 
 function addMessage(role,text,attached=[]){
   $('empty')?.remove();const m=document.createElement('div');m.className='msg '+(role==='user'?'user':'');
@@ -260,21 +272,23 @@ async function send(){
         const line=part.trim();if(!line.startsWith('data:'))continue;
         let payload;try{payload=JSON.parse(line.slice(5).trim())}catch{continue}
         if(payload.error)throw new Error(payload.error);
-        if(payload.token){full+=payload.token;bubble.innerHTML=escapeHTML(full).replace(/\n/g,'<br>');$('chat').scrollTop=999999}
+        if(payload.token){full+=payload.token;const visible=cleanAIResponse(full);bubble.innerHTML=escapeHTML(visible).replace(/\n/g,'<br>');$('chat').scrollTop=999999}
       }
     }
-    if(!full.trim())bubble.textContent="I couldn't generate a response.";
-    messages.push({role:'assistant',content:full});saveCurrent();
+    const finalAnswer=cleanAIResponse(full);
+    if(!finalAnswer)bubble.textContent="I couldn't generate a response.";
+    else bubble.innerHTML=escapeHTML(finalAnswer).replace(/\n/g,'<br>');
+    messages.push({role:'assistant',content:finalAnswer});saveCurrent();
   }catch(e){
     removeTyping();
-    if(e.name==='AbortError'){if(full.trim())messages.push({role:'assistant',content:full});else addMessage('assistant','⏹ Stopped.');saveCurrent()}
+    if(e.name==='AbortError'){const stopped=cleanAIResponse(full);if(stopped.trim())messages.push({role:'assistant',content:stopped});else addMessage('assistant','⏹ Stopped.');saveCurrent()}
     else addMessage('assistant','❌ '+e.message);
   }finally{
     activeController=null;setGenerating(false);
   }
 }
 
-function newChat(){sessionId=crypto.randomUUID();messages=[];$('messages').innerHTML='<div class="empty" id="empty"><h1>What can I create for you?</h1><p id="emptyHint">Chat normally like a general AI assistant, or use <b>＋</b> to add images and videos.</p><div class="quick"><button onclick="quick(\'Write a scene-by-scene video script for my story\')">🎬 Video Script</button><button onclick="quick(\'Give me an editing plan for my footage\')">✂️ Editing Plan</button><button onclick="quick(\'Suggest cinematic ideas for my images\')">✨ Creative Ideas</button><button onclick="quick(\'Generate accurate alt text for this image\')">🖼️ Alt Text</button></div></div>';files=[];renderFiles();toggleSend();toast('New chat')}
+function newChat(){sessionId=crypto.randomUUID();messages=[];$('messages').innerHTML='<div class="empty" id="empty"><h1>What can I create for you?</h1></div>';files=[];renderFiles();toggleSend();toast('New chat')}
 function saveCurrent(){if(!settings.save||!messages.length)return;const all=JSON.parse(localStorage.getItem('sais-chats')||'[]');const item={id:sessionId,title:messages.find(x=>x.role==='user')?.content?.slice(0,45)||'New chat',messages,updated:Date.now()};const idx=all.findIndex(x=>x.id===sessionId);if(idx>=0)all[idx]=item;else all.unshift(item);localStorage.setItem('sais-chats',JSON.stringify(all.slice(0,40)));loadHistory()}
 function loadHistory(){const h=$('history');h.innerHTML='';const all=JSON.parse(localStorage.getItem('sais-chats')||'[]');all.forEach(x=>{const d=document.createElement('div');d.className='chatrow '+(x.id===sessionId?'active':'');d.innerHTML='<span class="dot"></span><span class="title">'+escapeHTML(x.title)+'</span><button class="del" title="Delete chat">✕</button>';d.onclick=()=>restoreChat(x);d.querySelector('.del').onclick=(e)=>{e.stopPropagation();deleteChat(x.id)};h.appendChild(d)})}
 function deleteChat(id){
