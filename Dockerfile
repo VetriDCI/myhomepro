@@ -1,6 +1,6 @@
 FROM node:22-slim
 
-# ffmpeg is required for the long-form video merging feature
+# ffmpeg is required for long-form video merging features
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg && \
     rm -rf /var/lib/apt/lists/*

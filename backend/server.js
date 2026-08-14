@@ -10,8 +10,30 @@ import { spawn } from "child_process";
 
 const __filename=fileURLToPath(import.meta.url),__dirname=path.dirname(__filename);
 const app=express(),PORT=Number(process.env.PORT||3000);
+
+// Render/production middleware
+app.use(cors());
+app.use(express.json({limit:"50mb"}));
+
+// Serve the frontend from the same Express server
+const frontendRoot=path.join(__dirname,"../frontend");
+app.use(express.static(frontendRoot));
+
+// Serve uploaded files
+app.get("/api/files/:name",async(req,res)=>{
+  try{
+    const name=path.basename(String(req.params.name||""));
+    if(!name)return res.status(400).send("Invalid file name");
+    const full=path.join(uploadRoot,name);
+    await fs.access(full);
+    res.sendFile(full);
+  }catch{ res.status(404).send("File not found"); }
+});
 const uploadRoot=path.join(__dirname,"uploads");
+const generatedRoot=path.join(__dirname,"generated");
 await fs.mkdir(uploadRoot,{recursive:true});
+await fs.mkdir(generatedRoot,{recursive:true});
+app.use("/generated",express.static(generatedRoot));
 
 let ai=null;
 function getAI(){
@@ -65,7 +87,7 @@ function visionInstruction(message,images){
   }
   return `The user attached ${images.length} image${images.length>1?'s':''}. Inspect them carefully and answer the user's request using visible evidence from the image(s). Do not ask for a topic if the user's request is already clear.`;
 }
-function buildUserContent(message,images){
+function buildUserContent(message,images,extraText=''){
   const content=[];
   if(message?.trim())content.push({type:'text',text:String(message)});
   for(const image of (Array.isArray(images)?images:[]).slice(0,5)){
@@ -73,6 +95,7 @@ function buildUserContent(message,images){
       content.push({type:'image_url',image_url:{url:image.data}});
     }
   }
+  if(extraText?.trim())content.push({type:'text',text:String(extraText)});
   return content.length===1&&content[0].type==='text'?content[0].text:content;
 }
 function buildHistory(history,message){
@@ -115,6 +138,12 @@ function selectChatModel(images){
     ? (process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b')
     : (process.env.GROQ_MODEL||'llama-3.3-70b-versatile');
 }
+function reasoningOptions(model){
+  // Qwen 3.6 can emit raw <think> blocks unless reasoning is explicitly hidden.
+  // Keep the setting off for ordinary non-reasoning models for compatibility.
+  if(String(model).toLowerCase()==='qwen/qwen3.6-27b') return {reasoning_format:'hidden'};
+  return {};
+}
 
 function cleanAIResponse(text){
   if(!text)return '';
@@ -152,14 +181,17 @@ app.post("/api/ai/chat",async(req,res)=>{
     if(!message.trim()&&!hasVisionImages(images)&&!codeFiles.length)return res.status(400).json({ok:false,message:"Message, image, or code project is required."});
     const input=buildHistory(history,message);
     const instruction=visionInstruction(message,images);
-    const codeExtra=mode==='code'?codeContext(codeFiles):null;
+    const codeExtra=Array.isArray(codeFiles)&&codeFiles.length?codeContext(codeFiles):null;
     const staticHints=mode==='code'?codeStaticHints(codeFiles):[];
     if(instruction)input.push({role:'system',content:instruction});
-    input.push({role:"user",content:buildUserContent(message,images)+(codeExtra||"")+((staticHints.length)?`\n\nPRE-SCAN HINTS (verify these; do not blindly trust them):\n- ${staticHints.join("\n- ")}`:"")});
+    const extraText=(codeExtra||"")+((staticHints.length)?`\n\nPRE-SCAN HINTS (verify these; do not blindly trust them):\n- ${staticHints.join("\n- ")}`:"");
+    input.push({role:"user",content:buildUserContent(message,images,extraText)});
+    const selectedModel=hasVisionImages(images)?(process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'):(mode==='code'?(process.env.GROQ_MODEL||'llama-3.3-70b-versatile'):selectChatModel(images));
     const r=await getAI().chat.completions.create({
-      model:hasVisionImages(images)?(process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'):(mode==='code'?(process.env.GROQ_MODEL||'llama-3.3-70b-versatile'):selectChatModel(images)),
+      model:selectedModel,
       temperature:mode==="studio"?0.9:mode==="math"?0.2:0.7,
-      messages:[{role:"system",content:systemFor(mode)},...input]
+      messages:[{role:"system",content:systemFor(mode)},...input],
+      ...reasoningOptions(selectedModel)
     });
     res.json({ok:true,message:cleanAIResponse(r.choices?.[0]?.message?.content)||"I couldn't generate a response."});
   }catch(e){console.error(e);res.status(500).json({ok:false,message:e.message||"AI request failed."})}
@@ -172,19 +204,22 @@ app.post("/api/ai/chat/stream",async(req,res)=>{
     if(!message.trim()&&!hasVisionImages(images)&&!codeFiles.length)return res.status(400).json({ok:false,message:"Message, image, or code project is required."});
     const input=buildHistory(history,message);
     const instruction=visionInstruction(message,images);
-    const codeExtra=mode==='code'?codeContext(codeFiles):null;
+    const codeExtra=Array.isArray(codeFiles)&&codeFiles.length?codeContext(codeFiles):null;
     const staticHints=mode==='code'?codeStaticHints(codeFiles):[];
     if(instruction)input.push({role:'system',content:instruction});
-    input.push({role:"user",content:buildUserContent(message,images)+(codeExtra||"")+((staticHints.length)?`\n\nPRE-SCAN HINTS (verify these; do not blindly trust them):\n- ${staticHints.join("\n- ")}`:"")});
+    const extraText=(codeExtra||"")+((staticHints.length)?`\n\nPRE-SCAN HINTS (verify these; do not blindly trust them):\n- ${staticHints.join("\n- ")}`:"");
+    input.push({role:"user",content:buildUserContent(message,images,extraText)});
     res.setHeader("Content-Type","text/event-stream");
     res.setHeader("Cache-Control","no-cache");
     res.setHeader("Connection","keep-alive");
     res.flushHeaders?.();
+    const selectedModel=hasVisionImages(images)?(process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'):(mode==='code'?(process.env.GROQ_MODEL||'llama-3.3-70b-versatile'):selectChatModel(images));
     const stream=await getAI().chat.completions.create({
-      model:hasVisionImages(images)?(process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'):(mode==='code'?(process.env.GROQ_MODEL||'llama-3.3-70b-versatile'):selectChatModel(images)),
+      model:selectedModel,
       temperature:mode==="studio"?0.9:mode==="math"?0.2:0.7,
       messages:[{role:"system",content:systemFor(mode)},...input],
-      stream:true
+      stream:true,
+      ...reasoningOptions(selectedModel)
     });
     req.on("close",()=>{try{stream.controller?.abort()}catch{}});
     for await(const part of stream){
@@ -258,7 +293,7 @@ async function processLong(job){
    const file=path.join(dir,`scene-${String(i+1).padStart(3,"0")}.mp4`);await download(url,file);clips.push(file);
   }
   job.status="stitching";job.progress=90;job.message="Merging scenes...";
-  await fs.mkdir(path.join(__dirname,"generated"),{recursive:true});
+  await fs.mkdir(generatedRoot,{recursive:true});
   const out=path.join(__dirname,"generated",job.id+".mp4");await concat(clips,out);
   job.status="completed";job.progress=100;job.message="Final video ready.";job.video_url="/generated/"+job.id+".mp4";
  }catch(e){job.status="failed";job.message=e.message;console.error("JOB",job.id,e)}
@@ -285,4 +320,7 @@ app.post("/api/video/long/cancel/:id",(req,res)=>{
  j.cancelled=true;j.status="cancelled";j.message="Cancellation requested.";res.json({ok:true});
 });
 
-app.listen(PORT,()=>console.log(`SUPER AI STUDIO → http://localhost:${PORT}`));
+// SPA fallback: Render root URL must return the frontend instead of "Cannot GET /"
+app.get("/",(req,res)=>res.sendFile(path.join(frontendRoot,"index.html")));
+
+app.listen(PORT,"0.0.0.0",()=>console.log(`SUPER AI STUDIO → http://0.0.0.0:${PORT}`));

@@ -176,16 +176,19 @@ function clearFiles(){attachments=[];files=[];codeFiles=[];renderAttachments();t
 
 function fileAsDataURL(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 async function uploadSelectedFiles(list){
-  const arr=[...list].filter(f=>f.size<=25*1024*1024);
-  if(!arr.length)return [];
-  try{
-    const payload=[];
-    for(const f of arr) payload.push({name:f.webkitRelativePath||f.name,type:f.type||'application/octet-stream',data:await fileAsDataURL(f)});
-    const r=await fetch(settings.backend+'/api/files/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:payload})});
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok||!d.ok)throw new Error(d.message||'Upload failed');
-    return d.files||[];
-  }catch(e){toast('Attachment kept locally: '+e.message);return []}
+  const arr=[...list];
+  const out=[];
+  for(const f of arr){
+    if(f.size>25*1024*1024){toast(`${f.name}: maximum upload size is 25 MB`);continue;}
+    try{
+      const data=await fileAsDataURL(f);
+      const r=await fetch(settings.backend+'/api/files/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:[{name:f.webkitRelativePath||f.name,type:f.type||'application/octet-stream',data}]})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok)throw new Error(d.message||'Upload failed');
+      if(Array.isArray(d.files))out.push(...d.files);
+    }catch(e){toast(`${f.name}: kept locally (${e.message})`);}
+  }
+  return out;
 }
 
 async function addAttachments(list){
@@ -204,7 +207,7 @@ async function addAttachments(list){
   // Real server upload: files are stored so attachments are not just visual previews.
   const uploaded=await uploadSelectedFiles(accepted);
   uploaded.forEach(u=>{
-    const f=accepted.find(x=>(x.webkitRelativePath||x.name)===u.name||x.name===u.name);
+    const f=accepted.find(x=>(x.webkitRelativePath||x.name)===u.name || x.name===u.name);
     if(f)f.__upload=u;
   });
 

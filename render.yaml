@@ -9,8 +9,6 @@ services:
         sync: false
       - key: GROQ_MODEL
         value: llama-3.3-70b-versatile
-      - key: PORT
-        value: 3000
       # Only needed if you enable the 5-minute video generator.
       # Leave blank to use chat-only mode.
       - key: VIDEO_GENERATION_URL
