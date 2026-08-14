@@ -104,7 +104,8 @@ let files=[],codeFiles=[],attachments=[],mode='chat',messages=[],sessionId=crypt
 const defaults={backend:window.location.origin,model:'AI',mode:'chat',theme:'dark',enter:true,save:true,voice:false};
 const MAX_VISION_IMAGES=5;
 const MAX_VISION_BYTES=2*1024*1024;
-let settings={...defaults,...JSON.parse(localStorage.getItem('sais-settings')||'{}')};
+function readJSON(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch(e){localStorage.removeItem(key);return fallback}}
+let settings={...defaults,...readJSON('sais-settings',{})};
 
 function applySettings(){
   $('modelLabel').textContent=settings.model||'AI';
@@ -262,7 +263,7 @@ function resizePrompt(t){
   const wrap=document.querySelector('.composer-wrap');
   if(wrap)requestAnimationFrame(()=>{$('chat').style.paddingBottom=(wrap.offsetHeight+20)+'px'});
 }
-function toggleSend(){$('send').disabled=!$('prompt').value.trim()&&!attachments.length}
+function toggleSend(){const b=$('send'),p=$('prompt');if(!b||!p)return;b.disabled=!p.value.trim()&&!attachments.length}
 function setGenerating(on){
   const b=$('send');
   if(on){b.classList.add('stop');b.textContent='■';b.disabled=false;b.title='Stop generating';}
@@ -312,7 +313,8 @@ function outputKind(o){
   return 'file';
 }
 function outputLabel(kind){return ({image:'Image',video:'Video',audio:'Audio',pdf:'PDF',file:'File'})[kind]||'File'}
-// Only actual generated file outputs get a related download control. Normal text messages do not.\nfunction renderOutputs(m,outputs){
+// Only actual generated file outputs get a related download control. Normal text messages do not.
+function renderOutputs(m,outputs){
   const wrap=document.createElement('div');wrap.className='output-list';
   outputs.filter(o=>o&&o.url).forEach(o=>{
     const kind=outputKind(o), card=document.createElement('div');card.className='output-card';
@@ -413,11 +415,11 @@ async function send(){
 }
 
 function newChat(){sessionId=crypto.randomUUID();messages=[];$('messages').innerHTML='<div class="empty" id="empty"><h1>Ready when you are.</h1></div>';files=[];codeFiles=[];attachments=[];renderAttachments();toggleSend();toast('New chat')}
-function saveCurrent(){if(!settings.save||!messages.length)return;const all=JSON.parse(localStorage.getItem('sais-chats')||'[]');const item={id:sessionId,title:messages.find(x=>x.role==='user')?.content?.slice(0,45)||'New chat',messages,updated:Date.now()};const idx=all.findIndex(x=>x.id===sessionId);if(idx>=0)all[idx]=item;else all.unshift(item);localStorage.setItem('sais-chats',JSON.stringify(all.slice(0,40)));loadHistory()}
-function loadHistory(){const h=$('history');h.innerHTML='';const all=JSON.parse(localStorage.getItem('sais-chats')||'[]');all.forEach(x=>{const d=document.createElement('div');d.className='chatrow '+(x.id===sessionId?'active':'');d.innerHTML='<span class="dot"></span><span class="title">'+escapeHTML(x.title)+'</span><button class="del" title="Delete chat">✕</button>';d.onclick=()=>restoreChat(x);d.querySelector('.del').onclick=(e)=>{e.stopPropagation();deleteChat(x.id)};h.appendChild(d)})}
+function saveCurrent(){if(!settings.save||!messages.length)return;const all=readJSON('sais-chats',[]);const item={id:sessionId,title:messages.find(x=>x.role==='user')?.content?.slice(0,45)||'New chat',messages,updated:Date.now()};const idx=all.findIndex(x=>x.id===sessionId);if(idx>=0)all[idx]=item;else all.unshift(item);localStorage.setItem('sais-chats',JSON.stringify(all.slice(0,40)));loadHistory()}
+function loadHistory(){const h=$('history');h.innerHTML='';const all=readJSON('sais-chats',[]);all.forEach(x=>{const d=document.createElement('div');d.className='chatrow '+(x.id===sessionId?'active':'');d.innerHTML='<span class="dot"></span><span class="title">'+escapeHTML(x.title)+'</span><button class="del" title="Delete chat">✕</button>';d.onclick=()=>restoreChat(x);d.querySelector('.del').onclick=(e)=>{e.stopPropagation();deleteChat(x.id)};h.appendChild(d)})}
 function deleteChat(id){
   if(!confirm('Delete this chat?'))return;
-  const all=JSON.parse(localStorage.getItem('sais-chats')||'[]').filter(x=>x.id!==id);
+  const all=readJSON('sais-chats',[]).filter(x=>x.id!==id);
   localStorage.setItem('sais-chats',JSON.stringify(all));
   if(id===sessionId)newChat();
   loadHistory();toast('Chat deleted');

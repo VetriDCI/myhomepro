@@ -13,7 +13,7 @@ const app=express(),PORT=Number(process.env.PORT||3000);
 
 // Render/production middleware
 app.use(cors());
-app.use(express.json({limit:"50mb"}));
+app.use(express.json({limit:"40mb"}));
 
 // Serve the frontend from the same Express server
 const frontendRoot=path.join(__dirname,"../frontend");
@@ -166,9 +166,12 @@ app.post("/api/files/upload",async(req,res)=>{
       const data=String(f.data||"");
       const m=data.match(/^data:[^;]+;base64,(.*)$/s);
       if(!m)continue;
-      const ext=path.extname(String(f.name||"" )).toLowerCase();
+      // Keep server-side limits aligned with the browser's 25 MB per-file limit.
+      if(m[1].length > 36_000_000) return res.status(413).json({ok:false,message:`${String(f.name||"file")}: file is too large.`});
+      const ext=path.extname(String(f.name||"" )).toLowerCase().replace(/[^a-z0-9.]/gi,"").slice(0,12);
       const stored=crypto.randomUUID()+ext;
-      await fs.writeFile(path.join(uploadRoot,stored),Buffer.from(m[1],"base64"));
+      const bytes=Buffer.from(m[1],"base64");
+      await fs.writeFile(path.join(uploadRoot,stored),bytes);
       out.push({id:path.basename(stored,ext),name:String(f.name||"file"),storedName:stored,size:Math.round(m[1].length*.75),type:String(f.type||"application/octet-stream"),url:"/api/files/"+encodeURIComponent(stored)});
     }
     res.json({ok:true,files:out});
