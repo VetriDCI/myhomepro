@@ -24,7 +24,9 @@ app.get("/api/files/:name",async(req,res)=>{
   try{
     const name=path.basename(String(req.params.name||""));
     if(!name)return res.status(400).send("Invalid file name");
-    const full=path.join(uploadRoot,name);
+    const safeName=path.basename(String(req.params.name||""));
+    if(!safeName || safeName!==String(req.params.name||""))return res.status(400).end();
+    const full=path.join(uploadRoot,safeName);
     await fs.access(full);
     res.sendFile(full);
   }catch{ res.status(404).send("File not found"); }
