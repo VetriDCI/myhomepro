@@ -26,6 +26,64 @@ button,select,textarea,input{font:inherit}.app{display:flex;height:100vh}
 .modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:50}.modal.show{display:flex}.settings{width:min(650px,92vw);max-height:85vh;overflow:auto;background:#15191e;border:1px solid #363c44;border-radius:16px;box-shadow:0 25px 80px #000; padding:18px}.settings h2{margin:0 0 14px;font-size:18px;color:#fff}.setting{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}.setting label{font-size:12px;color:#c9cfd6}.setting input,.setting select{width:100%;background:#0f1317;color:#fff;border:1px solid var(--line);border-radius:8px;padding:9px;outline:0}.switch{display:flex;align-items:center;gap:8px}.settings-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:14px}.settings-actions button{border:1px solid var(--line);background:#20252b;color:#fff;border-radius:8px;padding:9px 13px;cursor:pointer}.settings-actions .save{background:var(--accent);border-color:var(--accent)}
 .toast{position:fixed;right:18px;top:72px;background:#171b20;color:#fff;border:1px solid #363c44;padding:10px 13px;border-radius:9px;display:none;z-index:80;font-size:12px}.toast.show{display:block}
 @media(max-width:820px){.sidebar{display:none}.composer-wrap{left:0}.chat{padding-left:10px;padding-right:10px}.modebar{max-width:calc(100vw - 100px)}}
+
+/* v18 UI polish: readable 16px chat/sidebar and complete light theme */
+.chat{font-size:16px}
+.bubble{font-size:16px}
+.chatrow{font-size:16px}
+.newchat{font-size:16px}
+.side-label{font-size:11px}
+.md-code{font-size:16px;line-height:1.55}
+.md-inline{font-size:15px}
+.meta{font-size:11px}
+.mode-note{font-size:11px}
+.hint{font-size:11px}
+
+body[data-theme="light"] .newchat:hover,
+body[data-theme="light"] .chatrow:hover{background:#e7ebf0;color:#111}
+body[data-theme="light"] .quick button{background:#fff;color:#20242a}
+body[data-theme="light"] .composer-wrap{background:linear-gradient(transparent,var(--bg) 28%)}
+body[data-theme="light"] .composer{background:#fff;border-color:#cbd1d8;box-shadow:0 14px 45px #0002}
+body[data-theme="light"] .prompt{color:#151515}
+body[data-theme="light"] .plus{background:#f5f7f9;color:#151515;border-color:#c7cdd5}
+body[data-theme="light"] .plus:hover{background:#e9edf2}
+body[data-theme="light"] .send{background:#171b20;color:#fff}
+body[data-theme="light"] .send:disabled{opacity:.32}
+body[data-theme="light"] .mode{background:#fff;color:#3e4650}
+body[data-theme="light"] .mode.active{background:#eee9ff;border-color:#7658e8;color:#3b2a82}
+body[data-theme="light"] .mode[data-mode=studio].active{background:#e9edff;border-color:#6578dc;color:#2f3d86}
+body[data-theme="light"] .mode[data-mode=math].active{background:#e9f7ee;border-color:#55a66f;color:#28633d}
+body[data-theme="light"] .mode[data-mode=code].active{background:#fff2df;border-color:#c78b45;color:#704414}
+body[data-theme="light"] .menu{background:#fff;border-color:#cbd1d8;box-shadow:0 16px 45px #0002}
+body[data-theme="light"] .menu button{color:#20242a}
+body[data-theme="light"] .menu button:hover{background:#eef1f4}
+body[data-theme="light"] .preview{background:#f4f6f8}
+body[data-theme="light"] .dropzone{background:#ffffffef;color:#151515}
+body[data-theme="light"] .output-card,
+body[data-theme="light"] .file-chip,
+body[data-theme="light"] .att{background:#fff}
+body[data-theme="light"] .output-download{background:#fff;color:#20242a}
+body[data-theme="light"] .output-download:hover{background:#eef1f4;color:#111}
+body[data-theme="light"] .settings{background:#fff;color:#151515;box-shadow:0 25px 80px #0003}
+body[data-theme="light"] .settings h2{color:#151515}
+body[data-theme="light"] .settings input,
+body[data-theme="light"] .settings select{background:#f7f8fa;color:#151515;border-color:#cbd1d8}
+body[data-theme="light"] .settings-actions button,
+body[data-theme="light"] .setting button{color:#151515!important;background:#f4f6f8!important}
+body[data-theme="light"] .setting .save{background:#6f53db!important;color:#fff!important}
+body[data-theme="light"] .user .bubble{background:#eef1f5;border-color:#d1d6dd;color:#151515}
+body[data-theme="light"] .md-code{background:#f5f7f9;color:#1b2026}
+body[data-theme="light"] .md-inline{background:#eef1f4}
+body[data-theme="light"] .output-card iframe{background:#fff}
+body[data-theme="light"] .top-actions button{background:#f5f7f9;color:#151515}
+
+/* Clipboard / code-copy affordance */
+.code-wrap{position:relative;margin:9px 0}
+.code-wrap .md-code{margin:0}
+.copy-code{position:absolute;right:8px;top:8px;border:1px solid #3b4149;background:#171b20;color:#e7ebef;border-radius:7px;padding:5px 8px;font-size:11px;cursor:pointer;opacity:.9}
+.copy-code:hover{opacity:1}
+body[data-theme="light"] .copy-code{background:#fff;color:#20242a;border-color:#cbd1d8}
+
 </style>
 </head>
 <body>
@@ -83,7 +141,7 @@ button,select,textarea,input{font:inherit}.app{display:flex;height:100vh}
 <div class="setting"><label>Backend URL</label><input id="sBackend" placeholder="http://localhost:3000"></div>
 <div class="setting"><label>AI model label</label><input id="sModel" placeholder="AI"></div>
 <div class="setting"><label>Default mode</label><select id="sMode"><option value="chat">Chat</option><option value="studio">Studio</option><option value="math">Math</option></select></div>
-<div class="setting"><label>Theme</label><select id="sTheme"><option value="dark">Dark</option><option value="light">Light</option></select></div>
+<div class="setting"><label>Theme</label><select id="sTheme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></div>
 <div class="setting"><label>Send on Enter</label><div class="switch"><input type="checkbox" id="sEnter"> Enable</div></div>
 <div class="setting"><label>Auto save chats</label><div class="switch"><input type="checkbox" id="sSave"> Enable</div></div>
 <div class="setting"><label>Voice input</label><div class="switch"><input type="checkbox" id="sVoice"> Show microphone button</div></div>
@@ -109,9 +167,10 @@ let settings={...defaults,...readJSON('sais-settings',{})};
 
 function applySettings(){
   $('modelLabel').textContent=settings.model||'AI';
-  document.body.dataset.theme=settings.theme;
-  if(settings.theme==='light'){
-    document.documentElement.style.setProperty('--bg','#e5e5e5');document.documentElement.style.setProperty('--panel','#ffffff');
+  const resolvedTheme=settings.theme==='system'?(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):settings.theme;
+  document.body.dataset.theme=resolvedTheme;
+  if(resolvedTheme==='light'){
+    document.documentElement.style.setProperty('--bg','#f4f5f7');document.documentElement.style.setProperty('--panel','#ffffff');
     document.documentElement.style.setProperty('--panel2','#f0f2f5');document.documentElement.style.setProperty('--line','#d7dbe1');document.documentElement.style.setProperty('--text','#151515');document.documentElement.style.setProperty('--muted','#66707b');
     document.documentElement.style.colorScheme='light';
   }else{
@@ -133,7 +192,7 @@ function saveSettings(){
   localStorage.setItem('sais-settings',JSON.stringify(settings));applySettings();closeSettings();toast('Settings saved');
 }
 function resetSettings(){settings={...defaults};localStorage.setItem('sais-settings',JSON.stringify(settings));openSettings();toast('Settings reset')}
-function toggleTheme(){settings.theme=settings.theme==='dark'?'light':'dark';localStorage.setItem('sais-settings',JSON.stringify(settings));applySettings()}
+function toggleTheme(){settings.theme=settings.theme==='dark'?'light':'dark';localStorage.setItem('sais-settings',JSON.stringify(settings));applySettings();toast(settings.theme==='dark'?'Dark theme':'Light theme')}
 function toast(t){const x=$('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),1800)}
 
 function toggleMenu(){$('plusMenu').classList.toggle('show')}
@@ -280,7 +339,8 @@ function renderMarkdown(text){
   const codeBlocks=[];
   src=src.replace(/```([\w+-]*)\n?([\s\S]*?)```/g,(_,lang,code)=>{
     const i=codeBlocks.length;
-    codeBlocks.push('<pre class="md-code"><code>'+escapeHTML(code.replace(/\n$/,''))+'</code></pre>');
+    const safe=escapeHTML(code.replace(/\n$/,''));
+    codeBlocks.push('<div class="code-wrap"><button class="copy-code" type="button" data-code="'+encodeURIComponent(code.replace(/\n$/,''))+'">Copy</button><pre class="md-code"><code>'+safe+'</code></pre></div>');
     return `\u0000CODE${i}\u0000`;
   });
   let html=escapeHTML(src);
@@ -455,12 +515,49 @@ function deleteChat(id){
 }
 function restoreChat(x){sessionId=x.id;messages=x.messages||[];$('messages').innerHTML='';messages.forEach(m=>{if(m.role==='user'||m.role==='assistant')addMessage(m.role,m.content||'')});loadHistory()}
 function clearHistory(){if(confirm('Clear saved chat history?')){localStorage.removeItem('sais-chats');loadHistory();toast('History cleared')}}
+function insertPlainTextAtCursor(text){
+  const p=$('prompt');
+  const start=p.selectionStart ?? p.value.length, end=p.selectionEnd ?? start;
+  if(typeof p.setRangeText==='function') p.setRangeText(text,start,end,'end');
+  else p.value=p.value.slice(0,start)+text+p.value.slice(end);
+  resizePrompt(p);toggleSend();p.focus();
+}
+function setupClipboard(){
+  const p=$('prompt');
+  p.addEventListener('paste',async e=>{
+    const cd=e.clipboardData;
+    const text=cd?.getData('text/plain')||'';
+    const items=[...(cd?.items||[])];
+    const imageFiles=items.map(i=>i.kind==='file'?i.getAsFile():null).filter(Boolean).filter(f=>f.type.startsWith('image/'));
+    if(text){
+      e.preventDefault();
+      insertPlainTextAtCursor(text);
+      if(imageFiles.length) await addAttachments(imageFiles);
+      return;
+    }
+    if(imageFiles.length){e.preventDefault();await addAttachments(imageFiles);}
+  });
+  $('messages').addEventListener('click',async e=>{
+    const b=e.target.closest('.copy-code');
+    if(!b)return;
+    try{
+      const code=decodeURIComponent(b.dataset.code||'');
+      await navigator.clipboard.writeText(code);
+      const old=b.textContent;b.textContent='Copied';setTimeout(()=>b.textContent=old,1200);
+    }catch{toast('Copy failed — select the code and copy manually');}
+  });
+  if(window.matchMedia){
+    const mq=matchMedia('(prefers-color-scheme: light)');
+    mq.addEventListener?.('change',()=>{if(settings.theme==='system')applySettings()});
+  }
+}
+
 function setupDrop(){
   const c=$('composer');['dragenter','dragover'].forEach(ev=>c.addEventListener(ev,e=>{e.preventDefault();$('dropzone').classList.add('show')}));
   ['dragleave','drop'].forEach(ev=>c.addEventListener(ev,e=>{e.preventDefault();$('dropzone').classList.remove('show')}));
   c.addEventListener('drop',e=>addAttachments(e.dataTransfer.files));
 }
-setupDrop();applySettings();renderAttachments();toggleSend();resizePrompt($('prompt'));updateAttachmentHint();
+setupClipboard();setupDrop();applySettings();renderAttachments();toggleSend();resizePrompt($('prompt'));updateAttachmentHint();
 </script>
 </body>
 </html>
