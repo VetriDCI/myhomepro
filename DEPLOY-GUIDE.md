@@ -55,7 +55,7 @@ git push -u origin main
 Render dashboard la, unga service open panni:
 1. **Environment** tab ku poonga
 2. **Add Environment Variable** click pannunga:
-   - Key: `OPENAI_API_KEY`  →  Value: unga real OpenAI key
+   - Key: `GROQ_API_KEY`  →  Value: unga real Groq API key
    - Key: `OPENAI_MODEL`  →  Value: `gpt-4o`
 
 (`.env` file idha edukum, Render dashboard la direct set pannanum — server code la already adha automatic ah padikum)
@@ -86,3 +86,7 @@ Idhu venumna, `VIDEO_GENERATION_URL`, `VIDEO_STATUS_URL`, `VIDEO_API_KEY` — mo
 
 ### Code Doctor
 Select **Code Doctor** in the UI, then use **+ → Add code / project**. You can choose source files or a ZIP project. The browser extracts supported text files from ZIPs before sending them to the backend. Keep GROQ_API_KEY only on the server; never put it in frontend code.
+
+
+### v18 UI baseline
+The updated build keeps the v18 frontend UI. Install dependencies with `npm install` in `backend`, then run `npm start`.

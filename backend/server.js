@@ -157,6 +157,19 @@ function codeStaticHints(codeFiles){
   return hints.slice(0,30);
 }
 
+const ALLOWED_LLM_MODELS = new Set([
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.6-27b'
+]);
+function requestedModel(model, images){
+  if(hasVisionImages(images)) return process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b';
+  const m=String(model||'').trim();
+  return ALLOWED_LLM_MODELS.has(m) ? m : (process.env.GROQ_MODEL||'llama-3.3-70b-versatile');
+}
+
 function selectChatModel(images){
   return hasVisionImages(images)
     ? (process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b')
@@ -165,7 +178,8 @@ function selectChatModel(images){
 function reasoningOptions(model){
   // Qwen 3.6 can emit raw <think> blocks unless reasoning is explicitly hidden.
   // Keep the setting off for ordinary non-reasoning models for compatibility.
-  if(String(model).toLowerCase()==='qwen/qwen3.6-27b') return {reasoning_format:'hidden'};
+  if(String(model).toLowerCase()==='qwen/qwen3.6-27b') return {reasoning_format:'hidden',reasoning_effort:'none'};
+  if(/^openai\/gpt-oss-(20b|120b)$/.test(String(model).toLowerCase())) return {reasoning_effort:'medium'};
   return {};
 }
 
@@ -200,11 +214,29 @@ app.post("/api/files/upload",async(req,res)=>{
   }catch(e){res.status(500).json({ok:false,message:e.message||"Upload failed."})}
 });
 
+
+// Accurate calculator endpoint.
+// Arithmetic is evaluated by mathjs BigNumber instead of asking the LLM to calculate.
+app.post("/api/calculate",async(req,res)=>{
+  const expression=String(req.body?.expression||"").trim();
+  if(!expression)return res.status(400).json({ok:false,message:"Expression is required."});
+  if(expression.length>1000)return res.status(400).json({ok:false,message:"Expression is too long."});
+  try{
+    const {create,all}=await import("mathjs");
+    const math=create(all,{number:"BigNumber",precision:64});
+    const result=math.evaluate(expression);
+    const formatted=math.format(result,{precision:50,lowerExp:-50,upperExp:50});
+    res.json({ok:true,expression,result:formatted,precision:64});
+  }catch(e){
+    res.status(400).json({ok:false,message:"Invalid mathematical expression."});
+  }
+});
+
 app.get("/api/health",(req,res)=>res.json({ok:true,service:"SUPER AI STUDIO",time:new Date().toISOString(),vision_model:process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'}));
 
 app.post("/api/ai/chat",async(req,res)=>{
   try{
-    const {message="",mode="chat",history=[],images=[],codeFiles=[]}=req.body||{};
+    const {message="",mode="chat",history=[],images=[],codeFiles=[],model}=req.body||{};
     if(!message.trim()&&!hasVisionImages(images)&&!codeFiles.length)return res.status(400).json({ok:false,message:"Message, image, or code project is required."});
     const input=buildHistory(history,message);
     const instruction=visionInstruction(message,images);
@@ -213,7 +245,7 @@ app.post("/api/ai/chat",async(req,res)=>{
     if(instruction)input.push({role:'system',content:instruction});
     const extraText=(codeExtra||"")+((staticHints.length)?`\n\nPRE-SCAN HINTS (verify these; do not blindly trust them):\n- ${staticHints.join("\n- ")}`:"");
     input.push({role:"user",content:buildUserContent(message,images,extraText)});
-    const selectedModel=hasVisionImages(images)?(process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'):(mode==='code'?(process.env.GROQ_MODEL||'llama-3.3-70b-versatile'):selectChatModel(images));
+    const selectedModel=requestedModel(model,images);
     const r=await getAI().chat.completions.create({
       model:selectedModel,
       temperature:mode==="studio"?0.9:mode==="math"?0.2:0.7,
@@ -227,7 +259,7 @@ app.post("/api/ai/chat",async(req,res)=>{
 // Streaming chat supports normal text chat plus image understanding/alt text.
 app.post("/api/ai/chat/stream",async(req,res)=>{
   try{
-    const {message="",mode="chat",history=[],images=[],codeFiles=[]}=req.body||{};
+    const {message="",mode="chat",history=[],images=[],codeFiles=[],model}=req.body||{};
     if(!message.trim()&&!hasVisionImages(images)&&!codeFiles.length)return res.status(400).json({ok:false,message:"Message, image, or code project is required."});
     const input=buildHistory(history,message);
     const instruction=visionInstruction(message,images);
@@ -240,7 +272,7 @@ app.post("/api/ai/chat/stream",async(req,res)=>{
     res.setHeader("Cache-Control","no-cache");
     res.setHeader("Connection","keep-alive");
     res.flushHeaders?.();
-    const selectedModel=hasVisionImages(images)?(process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b'):(mode==='code'?(process.env.GROQ_MODEL||'llama-3.3-70b-versatile'):selectChatModel(images));
+    const selectedModel=requestedModel(model,images);
     const stream=await getAI().chat.completions.create({
       model:selectedModel,
       temperature:mode==="studio"?0.9:mode==="math"?0.2:0.7,

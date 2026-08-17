@@ -1,0 +1,1 @@
+SUPER AI STUDIO v19/V18 UI - Animated AI icon update. Icon added to logo, assistant/typing avatar, and favicon. Existing LLM/UI preserved.
