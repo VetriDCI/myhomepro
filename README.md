@@ -1,3 +1,23 @@
+# SUPER AI STUDIO v27 — Stable V26 Upgrade
+
+This version preserves the V18/V26 desktop layout while fixing the backend connection path and current Groq model configuration.
+
+## V27 changes
+- Removed the duplicate top-center `SUPER AI STUDIO` / model label; the left brand remains.
+- File-open testing now points to `http://localhost:3000` instead of the unusable `file://` origin.
+- Added a clearer backend connection error instead of the generic `Failed to fetch`.
+- LLM calls remain server-side; the Groq API key is not stored in frontend JavaScript.
+- Default Groq model is `openai/gpt-oss-120b`; vision uses `qwen/qwen3.6-27b`.
+- Keeps accurate MathJS calculation route, streaming LLM, Tanglish understanding, paste handling, mobile history drawer, and one DOWN jump-to-latest button.
+
+## Run locally
+```bash
+cd backend
+npm install
+# create backend/.env from backend/.env.example and add GROQ_API_KEY
+npm start
+```
+Open `http://localhost:3000`. Do not double-click `frontend/index.html`.
 # SUPER AI STUDIO v10 — Render Root Route Fix
 
 This version fixes the Render deployment error:

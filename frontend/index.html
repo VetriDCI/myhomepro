@@ -185,7 +185,6 @@ body[data-theme="light"] .copy-code{background:#fff;color:#20242a;border-color:#
 <main class="main">
 <header class="topbar">
 <button class="mobile-history-btn" id="mobileHistoryBtn" type="button" title="Chat history" aria-label="Chat history">☰</button>
-  <div class="modelname">SUPER AI STUDIO <small id="modelLabel" style="display:none">AI</small></div>
   <div class="top-actions">
     <button onclick="toggleTheme()" title="Theme">◐</button>
     <button onclick="openSettings()" title="Settings">⚙</button>
@@ -215,8 +214,7 @@ body[data-theme="light"] .copy-code{background:#fff;color:#20242a;border-color:#
       <button class="send" id="send" disabled onclick="handleSendClick()">↑</button>
     </div>
   </div>
-  <div class="hint">Enter to send • Shift+Enter for new line • Drop files into the box</div>
-</div>
+  </div>
 </main>
 </div>
 
@@ -231,19 +229,10 @@ body[data-theme="light"] .copy-code{background:#fff;color:#20242a;border-color:#
 <div class="modal" id="settingsModal" onclick="if(event.target===this)closeSettings()">
 <div class="settings">
 <h2>⚙ Settings</h2>
-<div class="setting"><label>Backend URL</label><input id="sBackend" placeholder="http://localhost:3000"></div>
 <div class="setting"><label>AI model label</label><input id="sModel" placeholder="AI"></div>
-<div class="setting"><label>LLM</label><select id="sLLM">
-<option value="llama-3.3-70b-versatile">Llama 3.3 70B — Balanced</option>
-<option value="openai/gpt-oss-120b">GPT-OSS 120B — Advanced</option>
-<option value="openai/gpt-oss-20b">GPT-OSS 20B — Fast</option>
-<option value="llama-3.1-8b-instant">Llama 3.1 8B — Fast</option>
-</select></div>
-<div class="setting"><label>Default mode</label><select id="sMode"><option value="chat">Chat</option><option value="studio">Studio</option><option value="math">Math</option></select></div>
 <div class="setting"><label>Theme</label><select id="sTheme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></div>
 <div class="setting"><label>Send on Enter</label><div class="switch"><input type="checkbox" id="sEnter"> Enable</div></div>
 <div class="setting"><label>Auto save chats</label><div class="switch"><input type="checkbox" id="sSave"> Enable</div></div>
-<div class="setting"><label>Voice input</label><div class="switch"><input type="checkbox" id="sVoice"> Show microphone button</div></div>
 <div class="setting"><label>Chat history</label><button onclick="clearHistory()" style="border:1px solid var(--line);background:#20252b;color:#fff;border-radius:8px;padding:9px 13px;cursor:pointer">🗑 Clear all saved chats</button></div>
 <div class="settings-actions"><button onclick="resetSettings()">Reset</button><button onclick="closeSettings()">Cancel</button><button class="save" onclick="saveSettings()">Save settings</button></div>
 </div></div>
@@ -258,14 +247,17 @@ body[data-theme="light"] .copy-code{background:#fff;color:#20242a;border-color:#
 const $=id=>document.getElementById(id);
 let files=[],codeFiles=[],attachments=[],mode='chat',messages=[],sessionId=crypto.randomUUID(),activeController=null;
 
-const defaults={backend:window.location.origin,model:'AI',llm:'llama-3.3-70b-versatile',mode:'chat',theme:'dark',enter:true,save:true,voice:false};
+const defaultBackend=(window.location.protocol==='file:'?'http://localhost:3000':window.location.origin).replace(/\/$/,'');
+const defaults={backend:defaultBackend,model:'AI',llm:'openai/gpt-oss-120b',mode:'chat',theme:'dark',enter:true,save:true,voice:false};
 const MAX_VISION_IMAGES=5;
 const MAX_VISION_BYTES=2*1024*1024;
 function readJSON(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch(e){localStorage.removeItem(key);return fallback}}
 let settings={...defaults,...readJSON('sais-settings',{})};
+if(!settings.backend || settings.backend==='null' || settings.backend==='file://' || settings.backend.startsWith('file:')) settings.backend=defaultBackend;
+settings.backend=String(settings.backend).replace(/\/$/,'');
 
 function applySettings(){
-  $('modelLabel').textContent=(settings.llm||'llama-3.3-70b-versatile').split('/').pop();
+  $('modelLabel').textContent=(settings.llm||'openai/gpt-oss-120b').split('/').pop();
   const resolvedTheme=settings.theme==='system'?(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):settings.theme;
   document.body.dataset.theme=resolvedTheme;
   if(resolvedTheme==='light'){
@@ -281,13 +273,13 @@ function applySettings(){
   loadHistory();
 }
 function openSettings(){
-  $('sBackend').value=settings.backend;$('sModel').value=settings.model;$('sLLM').value=settings.llm||'llama-3.3-70b-versatile';$('sMode').value=settings.mode;$('sTheme').value=settings.theme;
-  $('sEnter').checked=settings.enter;$('sSave').checked=settings.save;$('sVoice').checked=settings.voice;
+  $('sModel').value=settings.model;$('sTheme').value=settings.theme;
+  $('sEnter').checked=settings.enter;$('sSave').checked=settings.save;
   $('settingsModal').classList.add('show');
 }
 function closeSettings(){$('settingsModal').classList.remove('show')}
 function saveSettings(){
-  settings={backend:$('sBackend').value.trim().replace(/\/$/,''),model:$('sModel').value.trim()||'AI',llm:$('sLLM').value,mode:$('sMode').value,theme:$('sTheme').value,enter:$('sEnter').checked,save:$('sSave').checked,voice:$('sVoice').checked};
+  settings={backend:defaults.backend,model:$('sModel').value.trim()||'AI',llm:defaults.llm,mode:settings.mode||'chat',theme:$('sTheme').value,enter:$('sEnter').checked,save:$('sSave').checked,voice:false};
   localStorage.setItem('sais-settings',JSON.stringify(settings));applySettings();closeSettings();toast('Settings saved');
 }
 function resetSettings(){settings={...defaults};localStorage.setItem('sais-settings',JSON.stringify(settings));openSettings();toast('Settings reset')}
@@ -334,6 +326,18 @@ function renderAttachments(){
 function clearFiles(){attachments=[];files=[];codeFiles=[];renderAttachments();toggleSend();updateAttachmentHint();$('allInput').value='';$('folderInput').value='';toast('Attachments removed')}
 
 function fileAsDataURL(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+async function apiFetch(path, options={}){
+  const base=String(settings.backend||defaultBackend).replace(/\/$/,'');
+  try{
+    return await fetch(base+path,options);
+  }catch(e){
+    if(e instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(String(e.message||''))){
+      throw new Error(`Backend connection failed. Start the SUPER AI STUDIO backend at ${base} and open the app from http://localhost:3000 (do not double-click index.html).`);
+    }
+    throw e;
+  }
+}
+
 async function uploadSelectedFiles(list){
   const arr=[...list];
   const out=[];
@@ -341,7 +345,7 @@ async function uploadSelectedFiles(list){
     if(f.size>25*1024*1024){toast(`${f.name}: maximum upload size is 25 MB`);continue;}
     try{
       const data=await fileAsDataURL(f);
-      const r=await fetch(settings.backend+'/api/files/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:[{name:f.webkitRelativePath||f.name,type:f.type||'application/octet-stream',data}]})});
+      const r=await apiFetch('/api/files/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files:[{name:f.webkitRelativePath||f.name,type:f.type||'application/octet-stream',data}]})});
       const d=await r.json().catch(()=>({}));
       if(!r.ok||!d.ok)throw new Error(d.message||'Upload failed');
       if(Array.isArray(d.files))out.push(...d.files);
@@ -410,7 +414,7 @@ function setMode(btn){
   mode=btn.dataset.mode;
   const ph={chat:'Message SUPER AI STUDIO...',studio:'Describe your video, story, scene plan, or edit...',math:'Enter an equation, math problem, or upload a math image...',code:'Paste code, describe an error, or upload a project to debug...'};
   $('prompt').placeholder=ph[mode]||ph.chat;
-  $('modeNote').textContent=mode==='studio'?'Video / Script Studio':mode==='math'?'Math • MathML • LaTeX • HTML • SVG':mode==='code'?'Code Doctor • Debug • Fix • Security':'General chat + image understanding';
+  const modeNoteEl=$('modeNote');if(modeNoteEl)modeNoteEl.textContent=mode==='studio'?'Video / Script Studio':mode==='math'?'Math • MathML • LaTeX • HTML • SVG':mode==='code'?'Code Doctor • Debug • Fix • Security':'General chat + image understanding';
   toggleSend();
 }
 function quick(t){$('prompt').value=t;resizePrompt($('prompt'));toggleSend();$('prompt').focus()}
@@ -619,7 +623,7 @@ async function send(){
       const expression=(calcMatch?calcMatch[1]:text)
         .replace(/,/g,'').replace(/×/g,'*').replace(/÷/g,'/')
         .replace(/−/g,'-').replace(/x/gi,'*');
-      const cr=await fetch(settings.backend+'/api/calculate',{
+      const cr=await apiFetch('/api/calculate',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({expression}),
@@ -647,7 +651,7 @@ async function send(){
 
   let full='';let pendingOutputs=[];
   try{
-    const r=await fetch(settings.backend+'/api/ai/chat/stream',{
+    const r=await apiFetch('/api/ai/chat/stream',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({message:text,mode,model:settings.llm,history:messages.slice(-10),images:visionImages,codeFiles:sentCode,attachments:uploadedFiles}),
       signal:controller.signal
@@ -756,6 +760,7 @@ function setupDrop(){
 })();
 
 setupClipboard();setupDrop();applySettings();renderAttachments();toggleSend();resizePrompt($('prompt'));updateAttachmentHint();
+(async()=>{try{const r=await apiFetch('/api/health');if(!r.ok)throw new Error('health');}catch(e){console.warn('SUPER AI STUDIO backend:',e.message)}})();
 </script>
 </body>
 </html>

@@ -8,7 +8,7 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
-        value: llama-3.3-70b-versatile
+        value: openai/gpt-oss-120b
       # Only needed if you enable the 5-minute video generator.
       # Leave blank to use chat-only mode.
       - key: VIDEO_GENERATION_URL

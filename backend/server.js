@@ -158,8 +158,6 @@ function codeStaticHints(codeFiles){
 }
 
 const ALLOWED_LLM_MODELS = new Set([
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
   'qwen/qwen3.6-27b'
@@ -167,13 +165,13 @@ const ALLOWED_LLM_MODELS = new Set([
 function requestedModel(model, images){
   if(hasVisionImages(images)) return process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b';
   const m=String(model||'').trim();
-  return ALLOWED_LLM_MODELS.has(m) ? m : (process.env.GROQ_MODEL||'llama-3.3-70b-versatile');
+  return ALLOWED_LLM_MODELS.has(m) ? m : (process.env.GROQ_MODEL||'openai/gpt-oss-120b');
 }
 
 function selectChatModel(images){
   return hasVisionImages(images)
     ? (process.env.GROQ_VISION_MODEL||'qwen/qwen3.6-27b')
-    : (process.env.GROQ_MODEL||'llama-3.3-70b-versatile');
+    : (process.env.GROQ_MODEL||'openai/gpt-oss-120b');
 }
 function reasoningOptions(model){
   // Qwen 3.6 can emit raw <think> blocks unless reasoning is explicitly hidden.
@@ -301,7 +299,7 @@ Preserve story order and visual consistency. For 300 seconds create about 30-60 
 
 async function makePlan(prompt,total,clip,aspect){
  const r=await getAI().chat.completions.create({
-  model:process.env.GROQ_MODEL||"llama-3.3-70b-versatile",
+  model:process.env.GROQ_MODEL||"openai/gpt-oss-120b",
   response_format:{type:"json_object"},
   messages:[
    {role:"system",content:PLAN_SYSTEM},
