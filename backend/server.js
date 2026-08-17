@@ -14,6 +14,11 @@ const app=express(),PORT=Number(process.env.PORT||3000);
 // Render/production middleware
 app.use(cors());
 app.use(express.json({limit:"40mb"}));
+app.use((err,req,res,next)=>{
+  if(err?.type==='entity.too.large') return res.status(413).json({ok:false,message:'Request is too large. Reduce the file/image size and try again.'});
+  if(err) return res.status(400).json({ok:false,message:'Invalid request body.'});
+  next();
+});
 
 // Serve the frontend from the same Express server
 const frontendRoot=path.join(__dirname,"../frontend");
@@ -251,7 +256,7 @@ app.post("/api/ai/chat",async(req,res)=>{
       ...reasoningOptions(selectedModel)
     });
     res.json({ok:true,message:cleanAIResponse(r.choices?.[0]?.message?.content)||"I couldn't generate a response."});
-  }catch(e){console.error(e);res.status(500).json({ok:false,message:e.message||"AI request failed."})}
+  }catch(e){console.error(e);res.status(Number(e?.status)||500).json({ok:false,message:e?.message||"AI request failed."})}
 });
 
 // Streaming chat supports normal text chat plus image understanding/alt text.

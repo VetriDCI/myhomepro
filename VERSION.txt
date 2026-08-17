@@ -1,3 +1,14 @@
-SUPER AI STUDIO v27
-Base: v26-minimal-settings
-Status: stable upgrade
+SUPER AI STUDIO v29
+V29 full audit / stability release based on v28
+
+Fixes:
+- Removed duplicate Enter key event path (prevents double-send / Enter glitches).
+- Shift+Enter remains newline.
+- Theme state is normalized and preserved when saving settings.
+- Custom backend URL is no longer overwritten when saving settings.
+- Added crypto.randomUUID fallback for broader browser compatibility.
+- Removed meaningless status expression.
+- Abort active request before page unload.
+- Added JSON body-size error handling in backend.
+- Health endpoint reports configured status without exposing secrets.
+- Preserved V18-style UI, single down-arrow jump button, mobile history drawer, LLM, vision and math routes.
