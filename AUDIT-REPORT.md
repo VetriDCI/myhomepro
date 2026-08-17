@@ -1,21 +1,28 @@
-# SUPER AI STUDIO v29 Audit Report
+# SUPER AI STUDIO V31 Audit Report
 
-## Verified
-- Backend JavaScript syntax checked with `node --check`.
-- Frontend inline JavaScript extracted and syntax checked with `node --check`.
-- Groq model IDs checked against current Groq documentation: `openai/gpt-oss-120b` and `qwen/qwen3.6-27b` are supported.
-- GPT-OSS 120B is used for text; Qwen 3.6 27B is used automatically for vision.
-- Math calculations use the server-side MathJS BigNumber route instead of asking the LLM to calculate simple arithmetic.
+## Fixed
+1. **Critical startup JavaScript bug**
+   - V30 referenced `settings.enter` before `let settings` was initialized.
+   - This can stop the rest of the frontend script from executing.
+   - V31 loads persisted settings first, then initializes `settings`.
 
-## Fixed in v29
-- Duplicate desktop Enter event path removed.
-- Shift+Enter newline preserved.
-- Theme selection normalized and persisted.
-- Saving settings no longer silently resets a custom backend URL.
-- Added UUID fallback.
-- Added request-too-large JSON error handling.
-- Health endpoint now exposes model/configuration status only, never the API key.
-- Active requests are aborted during page unload.
+2. **Enter key behavior**
+   - Enter sends the message.
+   - Shift+Enter creates a newline.
+   - `preventDefault()` and capture-phase handling prevent page/textarea scrolling.
+   - Removed the redundant document-level Enter fallback.
 
-## Configuration note
-Create `backend/.env` from `.env.example` and set `GROQ_API_KEY`. The key remains server-side; it is not embedded in the frontend.
+3. **Textarea scroll behavior**
+   - Added `overscroll-behavior: contain` to the prompt.
+
+4. **Theme initialization**
+   - Theme state is initialized only after settings exist.
+   - Existing Dark/Light/System handling remains preserved.
+
+## Verification
+- Backend JavaScript syntax check: passed.
+- Frontend inline JavaScript syntax check: passed.
+- Package structure preserved from V30.
+
+## Note
+The LLM requires a valid `GROQ_API_KEY` in `backend/.env` for real responses.

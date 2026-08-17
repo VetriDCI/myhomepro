@@ -1,14 +1,11 @@
-SUPER AI STUDIO v29
-V29 full audit / stability release based on v28
+SUPER AI STUDIO V31
+Fine Error-Fixed Build
+Base: V30 ENTER SEND FIX
 
-Fixes:
-- Removed duplicate Enter key event path (prevents double-send / Enter glitches).
-- Shift+Enter remains newline.
-- Theme state is normalized and preserved when saving settings.
-- Custom backend URL is no longer overwritten when saving settings.
-- Added crypto.randomUUID fallback for broader browser compatibility.
-- Removed meaningless status expression.
-- Abort active request before page unload.
-- Added JSON body-size error handling in backend.
-- Health endpoint reports configured status without exposing secrets.
-- Preserved V18-style UI, single down-arrow jump button, mobile history drawer, LLM, vision and math routes.
+Main fixes:
+- Fixed V30 initialization bug that referenced settings before declaration.
+- Enter sends; Shift+Enter inserts newline.
+- Prevented Enter from causing page/textarea scroll.
+- Removed duplicate document-level Enter fallback that could race with the textarea handler.
+- Theme persistence preserved and initialization made safe.
+- Backend and frontend syntax checks passed.
